@@ -1,0 +1,8 @@
+@relation foo
+@attribute width  numeric
+@attribute height numeric
+@attribute color  {red,green,blue,yellow,black}
+@data
+5.0,3.25,blue
+4.5,3.75,green
+3.0,4.00,red
