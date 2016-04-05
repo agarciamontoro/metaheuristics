@@ -59,7 +59,10 @@ def simulatedAnnealing(train, target, classifier):
                                                          np.ceil(15000/(10*numSamples)),
                                                          numSamples)
 
-    while temperature >= finalTemperature:
+    acceptedNeighbourgs = 1
+    numEvaluations = 0
+
+    while temperature > finalTemperature and acceptedNeighbourgs > 0 and numEvaluations < 15000:
         # Number of accepted neighbours
         acceptedNeighbourgs = 0
 
@@ -69,6 +72,8 @@ def simulatedAnnealing(train, target, classifier):
 
             # Generate neighbour solution
             flip(selectedFeatures, feature)
+
+            numEvaluations += 1
 
             # Get the current score from the K-NN classifier
             newScore = scoreSolution(train[:, selectedFeatures],
