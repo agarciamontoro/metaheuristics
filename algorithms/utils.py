@@ -22,7 +22,7 @@ def scoreSolution(data, target, knnClassifier):
         knnClassifier.fit(looDataTrain, looTargetTrain)
         finalScore += knnClassifier.score(looDataTest, looTargetTest)
 
-    return finalScore / size
+    return 100 * (finalScore / size)
 
 
 # Returns the initial solution

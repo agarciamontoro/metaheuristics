@@ -7,6 +7,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from algorithms.greedy import SFS
 from algorithms.localSearch import bestFirst
+from algorithms.simplePaths import simulatedAnnealing
 
 # Read data
 data, metaData = arff.loadarff("./data/wdbc.arff")
@@ -47,7 +48,7 @@ for i in range(numExperiments):
 
         # Select features and measure time
         start = time.time()
-        solution = bestFirst(featuresTrain, targetTrain, knnClassifier)
+        solution = simulatedAnnealing(featuresTrain, targetTrain, knnClassifier)
         end = time.time()
 
         print(solution)

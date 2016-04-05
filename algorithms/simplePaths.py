@@ -1,68 +1,100 @@
-from algorithms.utils import scoreSolution, genInitSolution, flip, randomly
-import math
+from algorithms.utils import scoreSolution, genInitSolution, flip
 import numpy as np
 
-finalTemperature = 0.001
+finalTemperature = 10**(-3)
+
 
 def SA_getInitTemperature(mu, initialCost, phi):
-    return (mu * initialCost) / -math.log(phi)
-
-
-def SA_neighborhood(temperature):
-    pass
+    return (mu * initialCost) / -np.log(phi)
 
 
 def SA_acceptWorseSolution(delta, temperature):
     randomValue = np.random.uniform(0., 1.)
-    probability = math.exp(-delta / temperature)
+
+    print(delta, temperature)
+
+    probability = np.exp(-delta / temperature)
 
     return randomValue <= probability
 
 
-def SA_generateCoolingScheme(T0, TF, M):
+def SA_generateCoolingScheme(T0, TF, M, size):
     beta = (T0 - TF) / (M * T0 * TF)
+    maxGenerated = 10 * size
+    maxAccepted = 0.1 * maxGenerated
 
-    def cool(temperature):
+    generatedNeighbourgs = 0
+
+    def SA_cool(temperature):
         return temperature / (1 + beta * temperature)
 
-    return cool
+    def SA_coolingNeeded(acceptedNeighbourgs):
+        nonlocal generatedNeighbourgs
+        generatedNeighbourgs += 1
+
+        # print(generatedNeighbourgs, maxGenerated)
+        # print(acceptedNeighbourgs, maxAccepted)
+
+        return (generatedNeighbourgs >= maxGenerated) or (acceptedNeighbourgs >= maxAccepted)
+
+    return SA_cool, SA_coolingNeeded
 
 
 def simulatedAnnealing(train, target, classifier):
-    # Number of features in training data
-    size = train.shape[1]
+    # Number of samples in training data
+    numSamples = train.shape[0]
 
-    selectedFeatures = genInitSolution(size)
+    # Number of features in training data
+    numFeatures = train.shape[1]
+
+    selectedFeatures = genInitSolution(numFeatures)
 
     bestSolution = np.copy(selectedFeatures)
 
-    bestScore = scoreSolution(train[:, selectedFeatures],
+    bestScore = scoreSolution(train[:, bestSolution],
                               target,
                               classifier)
 
+    currentScore = bestScore
+
     temperature = SA_getInitTemperature(0.3, bestScore, 0.3)
 
-    SA_cool = SA_generateCoolingScheme(temperature, finalTemperature, 15000)
+    SA_cool, SA_coolingNeeded = SA_generateCoolingScheme(temperature,
+                                                         finalTemperature,
+                                                         np.ceil(15000/(10*numSamples)),
+                                                         numSamples)
 
-    while temperature < finalTemperature:
-        for feature in SA_neighborhood(temperature):
-            # Generate new solution
+    while temperature >= finalTemperature:
+        # Number of accepted neighbours
+        acceptedNeighbourgs = 0
+        # print(temperature, finalTemperature)
+
+        while not SA_coolingNeeded(acceptedNeighbourgs):
+            # Pick a random feature
+            feature = np.random.randint(0, numFeatures)
+
+            # Generate neighbour solution
             flip(selectedFeatures, feature)
 
             # Get the current score from the K-NN classifier
-            currentScore = scoreSolution(train[:, selectedFeatures],
-                                         target,
-                                         classifier)
+            newScore = scoreSolution(train[:, selectedFeatures],
+                                     target,
+                                     classifier)
 
-            delta = currentScore - bestScore
+            delta = currentScore - newScore
 
-            # Update best score and solution
-            if delta > 0:
-                bestScore = currentScore
-                bestSolution = np.copy(selectedFeatures)
-            elif SA_acceptWorseSolution(delta, temperature):
+            # Update current score
+            if delta < 0 or SA_acceptWorseSolution(delta, temperature):
+                currentScore = newScore
+                acceptedNeighbourgs += 1
+
+                # Update best score and scoreSolution
+                if currentScore > bestScore:
+                    bestScore = currentScore
+                    bestSolution = np.copy(selectedFeatures)
+            else:
                 flip(selectedFeatures, feature)
 
-        temperature = SA_cool(temperature, M)
+        temperature = SA_cool(temperature)
 
-    return selectedFeatures
+    return bestSolution
