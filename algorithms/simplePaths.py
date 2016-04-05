@@ -16,10 +16,12 @@ def SA_acceptWorseSolution(delta, temperature):
     return randomValue <= probability
 
 
-def SA_generateCoolingScheme(T0, TF, M, size):
-    beta = (T0 - TF) / (M * T0 * TF)
+def SA_generateCoolingScheme(T0, TF, maxIter, size):
     maxGenerated = 10 * size
     maxAccepted = 0.1 * maxGenerated
+
+    M = np.ceil(maxIter/maxGenerated)
+    beta = (T0 - TF) / (M * T0 * TF)
 
     generatedNeighbourgs = 0
 
@@ -36,9 +38,6 @@ def SA_generateCoolingScheme(T0, TF, M, size):
 
 
 def simulatedAnnealing(train, target, classifier):
-    # Number of samples in training data
-    numSamples = train.shape[0]
-
     # Number of features in training data
     numFeatures = train.shape[1]
 
@@ -54,10 +53,12 @@ def simulatedAnnealing(train, target, classifier):
 
     temperature = SA_getInitTemperature(0.3, bestScore, 0.3)
 
+    maxIter = 15000
+
     SA_cool, SA_coolingNeeded = SA_generateCoolingScheme(temperature,
                                                          finalTemperature,
-                                                         np.ceil(15000/(10*numSamples)),
-                                                         numSamples)
+                                                         maxIter,
+                                                         numFeatures)
 
     acceptedNeighbourgs = 1
     numEvaluations = 0
