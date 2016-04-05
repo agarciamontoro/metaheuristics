@@ -11,8 +11,6 @@ def SA_getInitTemperature(mu, initialCost, phi):
 def SA_acceptWorseSolution(delta, temperature):
     randomValue = np.random.uniform(0., 1.)
 
-    print(delta, temperature)
-
     probability = np.exp(-delta / temperature)
 
     return randomValue <= probability
@@ -31,9 +29,6 @@ def SA_generateCoolingScheme(T0, TF, M, size):
     def SA_coolingNeeded(acceptedNeighbourgs):
         nonlocal generatedNeighbourgs
         generatedNeighbourgs += 1
-
-        # print(generatedNeighbourgs, maxGenerated)
-        # print(acceptedNeighbourgs, maxAccepted)
 
         return (generatedNeighbourgs >= maxGenerated) or (acceptedNeighbourgs >= maxAccepted)
 
@@ -67,7 +62,6 @@ def simulatedAnnealing(train, target, classifier):
     while temperature >= finalTemperature:
         # Number of accepted neighbours
         acceptedNeighbourgs = 0
-        # print(temperature, finalTemperature)
 
         while not SA_coolingNeeded(acceptedNeighbourgs):
             # Pick a random feature
@@ -84,7 +78,7 @@ def simulatedAnnealing(train, target, classifier):
             delta = currentScore - newScore
 
             # Update current score
-            if delta < 0 or SA_acceptWorseSolution(delta, temperature):
+            if delta != 0 and (delta < 0 or SA_acceptWorseSolution(delta, temperature)):
                 currentScore = newScore
                 acceptedNeighbourgs += 1
 
