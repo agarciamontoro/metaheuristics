@@ -2,12 +2,12 @@ import numpy as np
 from algorithms.utils import scoreSolution
 
 
-def SFS(train, target, knnClassifier):
+def SFS(train, target, classifier):
     # Number of features in training data
     size = train.shape[1]
 
     # Define the solution array
-    selectedFeatures = np.zeros(size, dtype=bool)
+    selectedFeatures = np.zeros(size, dtype=np.bool)
 
     # Loop variables
     improvementFound = True
@@ -19,7 +19,7 @@ def SFS(train, target, knnClassifier):
         improvementFound = False
 
         # Let's iterate through all not selected features
-        notSelectedFeatures = np.where(selectedFeatures == False)
+        notSelectedFeatures = np.where(selectedFeatures == False)[0]
 
         # For every feature not yet selected
         for feature in notSelectedFeatures:
@@ -29,7 +29,7 @@ def SFS(train, target, knnClassifier):
             # Get the current score from the K-NN classifier
             currentScore = scoreSolution(train[:, selectedFeatures],
                                          target,
-                                         knnClassifier)
+                                         classifier)
 
             # Update best score and solution
             if currentScore > bestScore:
