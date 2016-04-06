@@ -31,4 +31,4 @@ def bestFirst(train, target, classifier):
             else:
                 flip(selectedFeatures, feature)
 
-    return selectedFeatures
+    return selectedFeatures, bestScore

@@ -43,4 +43,4 @@ def SFS(train, target, classifier):
         if(improvementFound):
             selectedFeatures[bestFeature] = 1
 
-    return selectedFeatures
+    return selectedFeatures, bestScore

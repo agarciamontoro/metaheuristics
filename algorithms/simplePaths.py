@@ -99,7 +99,7 @@ def simulatedAnnealing(train, target, classifier):
 
         temperature = SA_cool(temperature)
 
-    return bestSolution
+    return bestSolution, bestScore
 
 
 # =========================================================================== #
@@ -168,4 +168,4 @@ def tabuSearch(train, target, classifier):
         print(numEvaluations)
         print(tabuList)
 
-    return bestSolution
+    return bestSolution, bestScore
