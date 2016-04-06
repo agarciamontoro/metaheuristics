@@ -165,7 +165,4 @@ def tabuSearch(train, target, classifier):
             tabuList.append(changedFeature)
             flip(selectedFeatures, changedFeature)
 
-        print(numEvaluations)
-        print(tabuList)
-
     return bestSolution, bestScore
