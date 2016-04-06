@@ -90,21 +90,12 @@ if __name__ == "__main__":
 
                     red = (len(solution) - solution.sum(0)) / len(solution)
 
-                    print("ScoreIn  :\t", scoreIn)
-                    print("ScoreOut :\t", scoreOut)
-                    print("Reduction:\t", red)
-                    print("Time     :\t", end-start)
-                    print("*--"*50)
-
                     # Get results
                     results = [scoreIn, 100 * scoreOut, 100 * red, end - start]
 
                     # Populate table with data
                     init = 4*dataIdx
                     tables[algStr][2*exp + partIdx][init: init+4] = results
-
-                    print(algStr, exp, partIdx, dataFileName)
-                    print(tables[algStr])
 
                     now = str(int(time.time()))
                     np.savetxt("results/" + algStr + "_" + now + "_temp.csv",
