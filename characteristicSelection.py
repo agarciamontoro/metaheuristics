@@ -7,7 +7,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from algorithms.greedy import SFS
 from algorithms.localSearch import bestFirst
-from algorithms.simplePaths import simulatedAnnealing
+from algorithms.simplePaths import simulatedAnnealing, tabuSearch
 
 # Read data
 data, metaData = arff.loadarff("./data/wdbc.arff")
@@ -33,6 +33,9 @@ knnClassifier = KNeighborsClassifier(n_neighbors=3, n_jobs=1)
 # Define number of experiments
 numExperiments = 5
 
+# List of algorithms
+metaheuristics = [SFS, bestFirst, simulatedAnnealing, tabuSearch]
+
 for i in range(numExperiments):
     # Make the partitions
     partitions = StratifiedKFold(data["target"], 2, shuffle=True)
@@ -48,7 +51,7 @@ for i in range(numExperiments):
 
         # Select features and measure time
         start = time.time()
-        solution = simulatedAnnealing(featuresTrain, targetTrain, knnClassifier)
+        solution = tabuSearch(featuresTrain, targetTrain, knnClassifier)
         end = time.time()
 
         print(solution)

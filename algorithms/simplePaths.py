@@ -1,3 +1,5 @@
+import random
+from collections import deque
 from algorithms.utils import scoreSolution, genInitSolution, flip
 import numpy as np
 
@@ -84,7 +86,7 @@ def simulatedAnnealing(train, target, classifier):
             delta = currentScore - newScore
 
             # Update current score
-            if delta != 0 and (delta < 0 or SA_acceptWorseSolution(delta, temperature)):
+            if (delta < 0 or SA_acceptWorseSolution(delta, temperature)):
                 currentScore = newScore
                 acceptedNeighbourgs += 1
 
@@ -96,5 +98,74 @@ def simulatedAnnealing(train, target, classifier):
                 flip(selectedFeatures, feature)
 
         temperature = SA_cool(temperature)
+
+    return bestSolution
+
+
+# =========================================================================== #
+# =========================================================================== #
+
+
+def tabuSearch(train, target, classifier):
+    # Number of features in training data
+    numSamples = train.shape[0]
+
+    # Number of features in training data
+    numFeatures = train.shape[1]
+
+    # Initial and best solution
+    selectedFeatures = genInitSolution(numFeatures)
+    bestSolution = np.copy(selectedFeatures)
+
+    # Initial and best score
+    bestScore = scoreSolution(train[:, selectedFeatures],
+                              target,
+                              classifier)
+
+    # Initialize tabu list with invalid indexes and fix its size to n/3
+    tabuListDim = numFeatures // 3
+    tabuList = deque([-1 for i in range(tabuListDim)], maxlen=tabuListDim)
+
+    changedFeature = 0
+    numEvaluations = 0
+
+    while changedFeature is not None and numEvaluations < 15000:
+        bestLocalScore = 0.
+        changedFeature = None
+
+        # For every solution in the neighbourhood
+        for feature in random.sample(range(numFeatures), 30):
+            # Generate neighbour solution
+            flip(selectedFeatures, feature)
+
+            # Get the current score from the K-NN classifier
+            currentScore = scoreSolution(train[:, selectedFeatures],
+                                         target,
+                                         classifier)
+
+            numEvaluations += 1
+
+            # Reset to the local solution
+            flip(selectedFeatures, feature)
+
+            # Do not consider features in tabuList
+            if(feature in tabuList):
+                # Unless it produces a really good solution
+                if(currentScore > bestScore):
+                    bestScore = currentScore
+                    bestSolution = np.copy(selectedFeatures)
+
+            # Update best local neighbour
+            elif(currentScore > bestLocalScore):
+                bestLocalScore = currentScore
+                changedFeature = feature
+
+        # Add last change to tabu list and pick the new solution
+        if(changedFeature is not None):
+            tabuList.append(changedFeature)
+            flip(selectedFeatures, changedFeature)
+
+        print(numEvaluations)
+        print(tabuList)
 
     return bestSolution
