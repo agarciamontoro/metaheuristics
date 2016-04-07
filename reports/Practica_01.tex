@@ -1,0 +1,206 @@
+\documentclass[a4paper, 11pt, titlepage]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{kvoptions-patch}
+\usepackage[title={Práctica 1: Búsquedas con trayectorias simples}]{estilo}
+
+\makeatletter
+ \renewcommand{\ALG@name}{Pseudocódigo}
+\makeatother
+
+\pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_knn.csv}\dataKNN
+\pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_SFS.csv}\dataSFS
+\pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_bestFirst.csv}\dataBF
+\pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_simulatedAnnealing.csv}\dataSA
+\pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_tabuSearch.csv}\dataTS
+
+\begin{document}
+
+    \maketitle
+
+    \pagenumbering{roman}
+    \tableofcontents
+    \newpage
+
+    \pagenumbering{arabic}
+
+    \section{Descripción del problema}
+    La selección de características es una técnica muy usada en problemas de aprendizaje automático.
+
+    El aprendizaje automático, visto de una forma muy general, tiene como objetivo clasificar un conjunto de objetos ---modelador por una serie de atributos--- en clases.
+
+    Esta clasificación se aprende desde los datos, pero la selección de los atributos que definen la modelización del objeto puede no ser la más apropiada: en ocasiones hay atributos superfluos o demasiado ruidosos que sería conveniente eliminar. Además, cuantos menos atributos definan un objeto, más rápido y preciso será el aprendizaje. Es aquí entonces donde aparece la pregunta que guia todo este trabajo: ¿cómo identificar los atributos que mejor aprendizaje promueven?
+
+    La respuesta a esta pregunta pasa por la selección de características, cuyo objetivo es reducir la definición de un objeto a una serie de características que faciliten el aprendizaje.
+
+    La idea es entonces la siguiente: dado un conjunto de $m$ objetos definidos por un conjunto $C$ de $n$ características y considerada un modelo de aprendizaje $f$ que intenta aprender la clasificación de estos objetos encontrar el subconjunto $C' \subset C$ que maximiza del modelo $f$.
+
+    Así, vemos claramente que el tamaño de caso de nuestro problema es $n$, el número de características, y que el objetivo está bien definido: eliminar aquellas características que o bien empeoren la bondad de $f$ o bien sean innecesarias.
+
+    Con todos estos elementos definidos, podemos pasar a analizar las metaheurísticas consideradas.
+
+    \section{Metaheurísticas}
+
+    \subsection{Introducción}
+
+    Los algoritmos considerados para resolver el problema son los siguientes:
+    \begin{itemize}
+        \item \emph{Best first local search}
+        \item \emph{Simulated annealing}
+        \item \emph{Short-term memory tabu search}
+    \end{itemize}
+
+    Además, compararemos estas metaheurísticas con el algoritmo voraz \emph{Sequential forward selection}.
+
+    Estas tres metaheurísticas reúnen las condiciones necesarias para resolver el problema: el espacio de soluciones de nuestro problema puede ser analizado mediante las estructuras de generación de vecinos y los criterios de aceptación que utilizan estos algoritmos. Veamos con un poco más de detalle los aspectos comunes a las metaheurísticas implementadas:
+
+    \subsubsection*{Datos de entrada}
+    Todos los algoritmos considerados reciben un conjunto de entrenamiento cuyos objetos tienen la siguiente estructura:
+    \[
+    (s_1, s_2, \dots, s_n, c)
+    \]
+    donde $(s_1, s_2, \dots, s_n)$ es el conjunto de valores de los atributos que definen el objeto y $c$ la clase a la que pertenece.
+
+    \subsubsection*{Esquema de representación}
+    El espacio de soluciones $S$ de nuestro problema es el conjunto de todos los vectores $s$ de longitud $n$ ---el número de características--- binarios; es decir:
+    \[
+    S = \{s = (s_1, s_2, \dots, s_n) / s_i \in \{0,1\} \;\forall i = 1, 2, \dots, n\}
+    \]
+
+    La posición $i$-ésima de un vector $s \in S$ indicará la inclusión o no de la característica $i$-ésima en el conjunto final $C'$.
+
+    \subsubsection*{Función objetivo}
+    La finalidad de las metaheurísticas será maximizar la función objetivo siguiente:
+    \begin{align*}
+        f \colon &S \to [0,100] \\
+        &s \mapsto f(s) = \textrm{Acierto del 3-NN sobre s}
+    \end{align*}
+
+    $f(s)$ es, por tanto, la tasa de acierto del clasificador 3-NN producido a partir de la solución $s$.
+
+    El clasificador 3-NN es una particularización del clasificador $k$-NN, que mide la distancia de la instancia considerada a todos los demás objetos en el conjunto de datos de entrenamiento y le asigna la clasificación mayoritaria de entre los $k$ vecinos más cercanos; esto es:
+
+    \begin{algorithm}
+        \caption{Clasificador $k$-NN}\label{knn}
+        \begin{algorithmic}[1]
+            \Function{$k$-NN}{instance, trainingData}
+            \State distances $\gets$ euclideanDistance(instance, trainingData)
+            \State neighbours $\gets$ getClosestNeighbours(distances)
+            \State classification $\gets$ mostVotedClassification(neighbours)
+            \State \Return classification
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsubsection*{Entorno de soluciones}
+    Dada una solución $s \in S$, el entorno de soluciones vecinas a $s$ es el conjunto
+    \[
+    E(s) = \{s' \in S / s' - s = (0, \dots, 0, \underbrace{1}_i, 0, \dots, 0), i\in\{1,2, \dots, n\}\}
+    \]
+    es decir, $E(s)$ son las soluciones que difieren de $s$ en una única posición. Es evidente entonces que el conjunto $E(S)$ tiene siempre exactamente cardinal igual a $n$.
+
+    El operador de generación de vecino de la solución $s$ es entonces como sigue:
+    \begin{algorithm}
+        \caption{Operador de generación de vecino}\label{flip}
+        \begin{algorithmic}[1]
+            \Function{flip}{solution, feature}
+            \State $s' \gets solution$
+            \State $s'[feature] \gets (s'[feature] + 1)$ mod 2
+            \State \Return s'
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+
+    % TODO: Hablar de la función score y del leaveoneout y esas mierdas
+
+    \subsubsection*{Criterios de parada}
+    Aunque los criterios de parada dependerán de la metaheurística considerada ---en general se parará cuando no se encuentre mejora en el entorno---, en todos los algoritmos pararemos necesariamente tras llegar a las 15000 evaluaciones con el clasificador 3-NN sobre las soluciones generadas.
+
+    \subsection{Búsqueda local primero el mejor}
+    El primer algoritmo considerado es una búsqueda local de primero el mejor muy sencilla. El pseudocódigo de todo el procedimiento es el siguiente:
+
+    \begin{algorithm}
+        \caption{Búsqueda local primero el mejor}\label{primMejor}
+        \begin{algorithmic}[1]
+            \Function{bestFirst}{train, target}
+            \State s $\gets$ genInitSolution()
+            \State besScore $\gets$ score(s, train, target)
+            \State improvementFound $\gets$ True
+            \While{improvementFound}
+            \State improvementFound $\gets$ False
+            \For{f $\gets$ genRandomFeature(s)} \Comment{Without replacement}
+            \State s' $\gets$ genNeighbour(s,f)
+            \State score $\gets$ score(s', train, target)
+            \If{score $>$ bestScore}
+            \State bestScore $\gets$ score
+            \State s $\gets$ s'
+            \State improvementFound $\gets$ True
+            \State \textbf{break}
+            \EndIf
+            \EndFor
+            \EndWhile
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    El método de exploración del entorno es el siguiente: dada una solución $s$, escogemos una característica al azar, aplicamos el operador $flip$ para obtener una solución vecina y medimos su bondad; si es mejor que $s$, nos quedamos con ella como mejor solución y volvemos a empezar; si no, tomamos otra característica al azar ---sin repetir--- y seguimos el proceso.
+
+    Pararemos el algoritmo si y sólo si, al haber explorado el entorno completo de la solución actual, ninguna de las soluciones vecinas es mejor. Estaremos entonces ante un máximo ---probablemente local--- y el algoritmo no puede mejorar la solución.
+
+    \subsubsection{Enfriamiento simulado}
+
+    La metaheurística de enfriamiento simulado es un ejemplo de estrategia de búsqueda por trayectorias simples.
+
+    La idea de este algoritmo es mantener una variable de temperatura, de manera que cuando esta sea alta la diversificación en el entorno de búsqueda será muy amplia ---podremos pasar a zonas peores, explorando así muchas zonas diferentes del espacio de búsqueda y evitando máximos locales--- y conforme tiene a la temperatura final, se procede a una fase de intensificación sobre una parte del espacio.
+
+    En este caso, además, debemos almacenar siempre la mejor solución, de manera que aunque al final intensifiquemos sobre una zona pobre, si al principio la diversificación fue exitosa, tengamos más posibilidades de obtener una solución buena.
+
+    Antes de entrar en los detalles, veamos primero el pseudocódigo del procedimiento en general:
+
+    \begin{algorithm}
+        \caption{Enfriamiento simulado}\label{enfSimul}
+        \begin{algorithmic}[1]
+            \Function{simulatedAnnealing}{train, target}
+            \State s $\gets$ genInitSolution()
+            \State bestSolution $\gets$ s
+            \State bestScore $\gets$ score(s, train, target)
+            \State currentScore $\gets$ bestScore
+            \State $t \gets t_0$
+            \While{$t > t_f$ \textbf{and} $neighboursAccepted > 0$ \textbf{and} $eval < 15000$}
+            \State neighboursAccepted $\gets$ 0
+            \While{not cooling needed}
+            \State f $\gets$ genRandomFeature(s)} \Comment{With replacement}
+            \State s' $\gets$ genNeighbour(s,f)
+            \State newScore $\gets$ score(s', train, target)
+            \State $\Delta = currentScore - newScore$
+            \If{$\Delta < 0$ \textbf{or} acceptWorseSolution = True}
+            \State currentScore $\gets$ newScore
+            \State acceptedNeighbourgs++
+            \If{currentScore $>$ bestScore}
+            \State bestScore $\gets$ currentScore
+            \State bestSolution $\gets$ s
+            \EndIf
+            \EndIf
+            \EndWhile
+            \State $t \gets$ coolingScheme(t)
+            \EndWhile
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    En este algoritmo hay tres cuestiones que debemos detallar: la generación de la temperatura inicial, la condición que se debe de cumplir para proceder al enfriamiento y la determinación de la aceptación de una solución peor que la actual.
+
+    % \maketable{\dataKNN}
+    %
+    % \maketable{\dataSFS}
+    %
+    % \maketable{\dataBF}
+    %
+    % \maketable{\dataSA}
+    %
+    % \maketable{\dataTS}
+
+
+\end{document}

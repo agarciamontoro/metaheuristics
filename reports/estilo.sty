@@ -1,0 +1,152 @@
+\ProvidesPackage{estilo}
+
+%Comandos para configurar el idioma
+\usepackage[spanish,activeacute]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc} %Necesario para el uso de las comillas latinas.
+
+%Código
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+%Package for options management
+\RequirePackage{kvoptions}
+\DeclareStringOption[0]{title}
+\ProcessKeyvalOptions*
+
+\usepackage{hyperref}
+\hypersetup{
+  pdfauthor={Alejandro García Montoro},
+  pdftitle={\estilo@title},
+  unicode,
+  plainpages=false,
+  colorlinks,
+  citecolor=black,
+  filecolor=black,
+  linkcolor=black,
+  urlcolor=black,
+}
+
+%Paquetes matemáticos
+\usepackage{amsmath,amsfonts,amsthm}
+\usepackage{amssymb}
+%\usepackage[all]{xy} %Para diagramas
+\usepackage{graphicx} %Inclusion imagenes
+\usepackage{enumerate} %Personalización de enumeraciones
+\usepackage{mathtools} %Para \coloneqq
+\usepackage{tikz} %Dibujos
+\usetikzlibrary{positioning} %Distancias y posicionamiento en tikz
+
+% Algoritmos
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+%Tipografía escalable
+\usepackage{lmodern}
+%Legibilidad
+\usepackage{microtype}
+
+\title{\estilo@title\\
+    Selección de características\\
+    \large Primero el mejor, enfriamiento simulado y búsqueda tabú básica}
+\author{Alejandro García Montoro\\
+    76628233F, \href{mailto:agarciamontoro@correo.ugr.es}{agarciamontoro@correo.ugr.es}\\
+    \\Grupo de los viernes a las 17.30}
+\date{Curso 2015 - 2016}
+
+\newtheorem{ejercicio}{Ejercicio}
+\theoremstyle{definition}
+\newtheorem*{solucion}{Solución}
+\theoremstyle{remark}
+\newtheorem{apartado}{Apartado}[ejercicio]
+
+% Useful for commenting align environments!
+% Taken from http://tex.stackexchange.com/a/38171
+\newcommand{\comment}[1]{%
+  \text{\phantom{(#1)}} \tag{#1}
+}
+
+\usepackage{hyperref}
+
+% Comando para añadir URL, enlace y pie de página de una vez.
+\newcommand\fnurl[2]{%
+  \href{#2}{#1}\footnote{\url{#2}}%
+}
+
+
+\setlength{\@fptop}{0pt}
+
+\usepackage{titlesec}
+\newcommand{\sectionbreak}{\clearpage}
+
+
+\usepackage{pgfplotstable}
+
+\newcommand{\maketable}[1]{
+\begin{adjustwidth}{}{}
+\resizebox{\linewidth}{!}{
+\pgfplotstabletypeset[
+	every head row/.style={
+		before row={%
+				\hline
+				& \multicolumn{4}{c|}{WDBC} & \multicolumn{4}{c|}{Movement Libras} & \multicolumn{4}{c|}{Arrythmia}\\
+				\cline{2-13}
+		},
+		after row=\cline{2-13}\hline,
+		column type=c
+	},
+	every first column/.style={ column type/.add={|}{} },
+	every last row/.style={before row =\hline\hline, after row=\hline},
+	column type/.add={}{|},
+	display columns/0/.style={column name =Particiones, string type},
+	display columns/1/.style={column name =\%Clas. in},
+    display columns/2/.style={column name =\%Clas. out},
+    display columns/3/.style={column name =\%Red.},
+    display columns/4/.style={column name =T},
+	display columns/5/.style={column name =\%Clas. in},
+    display columns/6/.style={column name =\%Clas. out},
+    display columns/7/.style={column name =\%Red.},
+    display columns/8/.style={column name =T},
+	display columns/9/.style={column name =\%Clas. in},
+	display columns/10/.style={column name =\%Clas. out},
+    display columns/11/.style={column name =\%Red.},
+	display columns/12/.style={column name =T},
+	precision=4
+	]{#1}
+}
+\end{adjustwidth}
+}
+
+\newcommand{\makeresume}[4]{
+\pgfplotstablevertcat{#1}{#2}
+\pgfplotstablecreatecol[copy column from table={#3}{in}]{inL} {#1}
+\pgfplotstablecreatecol[copy column from table={#3}{out}]{outL} {#1}
+\pgfplotstablecreatecol[copy column from table={#3}{red}]{redL} {#1}
+\pgfplotstablecreatecol[copy column from table={#3}{T}]{tL} {#1}
+\pgfplotstablecreatecol[copy column from table={#4}{in}]{inA} {#1}
+\pgfplotstablecreatecol[copy column from table={#4}{out}]{outA} {#1}
+\pgfplotstablecreatecol[copy column from table={#4}{red}]{redA} {#1}
+\pgfplotstablecreatecol[copy column from table={#4}{T}]{tA} {#1}
+}
+
+\newcommand{\getElement}[3]{\pgfplotstablegetelem{#2}{#3}\of{#1} \pgfplotsretval}
