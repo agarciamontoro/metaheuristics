@@ -137,6 +137,41 @@
 \end{adjustwidth}
 }
 
+\newcommand{\maketablemean}[1]{
+\begin{adjustwidth}{}{}
+\resizebox{\linewidth}{!}{
+\pgfplotstabletypeset[
+	every head row/.style={
+		before row={%
+				\hline
+				& \multicolumn{4}{c|}{WDBC} & \multicolumn{4}{c|}{Movement Libras} & \multicolumn{4}{c|}{Arrythmia}\\
+				\cline{2-13}
+		},
+		after row=\cline{2-13}\hline,
+		column type=c
+	},
+	every first column/.style={ column type/.add={|}{} },
+	every last row/.style={before row =, after row=\hline},
+	column type/.add={}{|},
+	display columns/0/.style={column name =Particiones, string type},
+	display columns/1/.style={column name =\%Clas. in},
+    display columns/2/.style={column name =\%Clas. out},
+    display columns/3/.style={column name =\%Red.},
+    display columns/4/.style={column name =T},
+	display columns/5/.style={column name =\%Clas. in},
+    display columns/6/.style={column name =\%Clas. out},
+    display columns/7/.style={column name =\%Red.},
+    display columns/8/.style={column name =T},
+	display columns/9/.style={column name =\%Clas. in},
+	display columns/10/.style={column name =\%Clas. out},
+    display columns/11/.style={column name =\%Red.},
+	display columns/12/.style={column name =T},
+	precision=4
+	]{#1}
+}
+\end{adjustwidth}
+}
+
 \newcommand{\makeresume}[4]{
 \pgfplotstablevertcat{#1}{#2}
 \pgfplotstablecreatecol[copy column from table={#3}{in}]{inL} {#1}

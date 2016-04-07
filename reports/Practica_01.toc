@@ -3,4 +3,16 @@
 \contentsline {section}{\numberline {2}Metaheur\IeC {\'\i }sticas}{2}{section.2}
 \contentsline {subsection}{\numberline {2.1}Introducci\IeC {\'o}n}{2}{subsection.2.1}
 \contentsline {subsection}{\numberline {2.2}B\IeC {\'u}squeda local primero el mejor}{3}{subsection.2.2}
-\contentsline {subsubsection}{\numberline {2.2.1}Enfriamiento simulado}{4}{subsubsection.2.2.1}
+\contentsline {subsection}{\numberline {2.3}Enfriamiento simulado}{4}{subsection.2.3}
+\contentsline {subsection}{\numberline {2.4}B\IeC {\'u}squeda tab\IeC {\'u} b\IeC {\'a}sica}{6}{subsection.2.4}
+\contentsline {subsection}{\numberline {2.5}Algoritmo de comparaci\IeC {\'o}n}{7}{subsection.2.5}
+\contentsline {section}{\numberline {3}Desarrollo de la pr\IeC {\'a}ctica}{9}{section.3}
+\contentsline {subsection}{\numberline {3.1}\emph {Framework} de aprendizaje autom\IeC {\'a}tico}{9}{subsection.3.1}
+\contentsline {subsection}{\numberline {3.2}Manual de usuario}{9}{subsection.3.2}
+\contentsline {section}{\numberline {4}An\IeC {\'a}lisis de resultados}{10}{section.4}
+\contentsline {subsection}{\numberline {4.1}Clasificador $k$-NN}{10}{subsection.4.1}
+\contentsline {subsection}{\numberline {4.2}Algoritmo de comparaci\IeC {\'o}n}{11}{subsection.4.2}
+\contentsline {subsection}{\numberline {4.3}B\IeC {\'u}squeda local primero el mejor}{11}{subsection.4.3}
+\contentsline {subsection}{\numberline {4.4}Enfriamiento simulado}{12}{subsection.4.4}
+\contentsline {subsection}{\numberline {4.5}B\IeC {\'u}squeda tab\IeC {\'u} b\IeC {\'a}sica}{12}{subsection.4.5}
+\contentsline {subsection}{\numberline {4.6}Datos generales}{13}{subsection.4.6}

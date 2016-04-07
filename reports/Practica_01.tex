@@ -12,6 +12,7 @@
 \pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_bestFirst.csv}\dataBF
 \pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_simulatedAnnealing.csv}\dataSA
 \pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_tabuSearch.csv}\dataTS
+\pgfplotstableread[col sep=comma]{../results/GoodOnes/FINAL_medias.csv}\dataMedias
 
 \begin{document}
 
@@ -148,7 +149,7 @@
 
     Pararemos el algoritmo si y sólo si, al haber explorado el entorno completo de la solución actual, ninguna de las soluciones vecinas es mejor. Estaremos entonces ante un máximo ---probablemente local--- y el algoritmo no puede mejorar la solución.
 
-    \subsubsection{Enfriamiento simulado}
+    \subsection{Enfriamiento simulado}
 
     La metaheurística de enfriamiento simulado es un ejemplo de estrategia de búsqueda por trayectorias simples.
 
@@ -164,26 +165,24 @@
             \Function{simulatedAnnealing}{train, target}
             \State s $\gets$ genInitSolution()
             \State bestSolution $\gets$ s
-            \State bestScore $\gets$ score(s, train, target)
-            \State currentScore $\gets$ bestScore
+            \State currentScore, bestScore $\gets$ score(s, train, target)
             \State $t \gets t_0$
-            \While{$t > t_f$ \textbf{and} $neighboursAccepted > 0$ \textbf{and} $eval < 15000$}
+            \While{$t > t_f$ \textbf{and} neighboursAccepted $> 0$ \textbf{and} eval $< 15000$}
             \State neighboursAccepted $\gets$ 0
             \While{not cooling needed}
             \State f $\gets$ genRandomFeature(s)} \Comment{With replacement}
             \State s' $\gets$ genNeighbour(s,f)
             \State newScore $\gets$ score(s', train, target)
-            \State $\Delta = currentScore - newScore$
+            \State $\Delta =$ currentScore - newScore
             \If{$\Delta < 0$ \textbf{or} acceptWorseSolution = True}
             \State currentScore $\gets$ newScore
             \State acceptedNeighbourgs++
             \If{currentScore $>$ bestScore}
-            \State bestScore $\gets$ currentScore
-            \State bestSolution $\gets$ s
+            \State bestScore, bestSolution $\gets$ currentScore, s
             \EndIf
             \EndIf
             \EndWhile
-            \State $t \gets$ coolingScheme(t)
+            \State $t \gets$ coolingScheme($t$)
             \EndWhile
             \State \Return s, bestScore
             \EndFunction
@@ -192,15 +191,235 @@
 
     En este algoritmo hay tres cuestiones que debemos detallar: la generación de la temperatura inicial, la condición que se debe de cumplir para proceder al enfriamiento y la determinación de la aceptación de una solución peor que la actual.
 
-    % \maketable{\dataKNN}
-    %
-    % \maketable{\dataSFS}
-    %
-    % \maketable{\dataBF}
-    %
-    % \maketable{\dataSA}
-    %
-    % \maketable{\dataTS}
+    \subsubsection*{Temperaturas inicial y final}
+
+    El esquema para la generación de la temperatura inicial es el siguiente:
+    \[
+    T_0 = \frac{\mu f(s_0)}{-\log(\phi)}
+    \]
+    donde $f(s_0)$ es la tasa de clasificación de la función objetivo con la solución inicial y donde se ha tomado $\mu = \phi = 0.3$
+
+    Además, se ha tomado el siguiente valor para la temperatura final, que controla el fin del algoritmo:
+    \[
+    T_f = 0.001
+    \]
+
+    \subsubsection*{Condición para el enfriamiento}
+
+    En el bucle interno del algoritmo se generan soluciones vecinas de la actual, aceptándolas o no dependiendo de su bondad y de una función probabilística que ahora describiremos y que depende de la temperatura.
+
+    Por tanto, en este bucle hay que controlar la condición que determinará cuándo se sale de él y se procede al enfriamiento, pasando así a una nueva fase con una función probabilística distinta. Esta condición es la siguiente: que el número de vecinos generados y de vecinos aceptados sean menores que unos máximos predeterminados ---dependientes del tamaño del problema---. Estos máximos se calculan de la siguiente manera:
+    \begin{align*}
+        \textrm{Máximo de vecinos generados} &= 10n\\
+        \textrm{Máximo de vecinos aceptados} &= \frac{1}{10} \textrm{Máximo de vecinos generados}
+    \end{align*}
+
+    \subsubsection* {Aceptación de soluciones peores que la actual}
+
+    La potencia del enfriamiento simulado se encuentra en poder aceptar soluciones peores que la actual, de manera que se explore de una forma más amplia el espacio de búsqueda y se reduzca la posibilidad de quedar atrapado en un máximo local.
+
+    En este algoritmo hemos considerado el esquema de Cauchy modificado, donde la temperatura en la iteración $k+1$, dependiente de la iteración $k$ y de una constante $\beta$, es la siguiente:
+    \[
+    T_{k+1} = \frac{T_k}{1 + \beta T_k}
+    \]
+    donde la constante $\beta$ está definida como sigue:
+    \[
+    \beta = \frac{T_0 - T_f}{M T_0 T_f}
+    \]
+    con el siguiente valor de $M$:
+    \[
+    M = \frac{\textrm{máximo de iteraciones permitidas}}{\textrm{máximo de vecinos generados}} = \frac{15000}{10n} = \frac{1500}{n}
+    \]
+
+    \subsection{Búsqueda tabú básica}
 
 
+    La búsqueda tabú es una herramienta muy potente para muchos problemas, incluido el que estamos considerando. La idea es hacer una búsqueda local manteniendo una serie de movimientos prohibidos, aceptando siempre ---incluso aunque sea peor--- la mejor solución vecina. Las soluciones mejores que la mejor solución encontrada están eximidas de la prohibición determinada por la lista tabú; a la condición que determina las soluciones eximidas la llamaremos criterio de aspiración, y en este caso es la ya descrita: que la solución considerada sea mejor que la mejor solución encontrada hasta ahora en todo el algoritmo.  El pseudocódigo del procedimiento implementado es el siguiente:
+    \begin{algorithm}
+        \caption{Búsqueda tabú}\label{enfSimul}
+        \begin{algorithmic}[1]
+            \Function{tabuSearch}{train, target}
+            \State s $\gets$ genInitSolution()
+            \State bestSolution $\gets$ s
+            \State currentScore, bestScore $\gets$ score(s, train, target)
+            \State $t \gets t_0$
+            \While{there was some change and evaluations $<$ 15000}
+                \For{f $\gets$ sampleFeature(s)} \Comment{Sample 30 different features}
+                    \State s' $\gets$ genNeighbour(s,f)
+                    \State currentScore $\gets$ score(s', train, target)
+                    \If{f is in tabu list}
+                        \If{currentScore $>$ bestScore} \Comment{Aspiration criterion}
+                        \State bestScore, bestSolution $\gets$ currentScore, s
+                        \EndIf
+                    \ElsIf{currentScore $>$ bestLocalScore} \Comment{Best local}
+                    \EndIf
+                \EndFor
+                \If{there was some changed feature}
+                \State Pop last feature from tabu list and push changed feature
+                \State s $\gets$ s'
+                \EndIf
+            \EndWhile
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    En este caso, el entorno de la solución está restringido a 30 elementos, y se genera de forma aleatoria tomando 30 características diferentes con las que poder aplicar el operador de generación de vecino.
+
+    \subsubsection*{Lista tabú}
+
+    El manejo de la lista tabú podemos especificarlo con más concreción como sigue:
+    \begin{itemize}
+        \item Inicialización: la lista tabú inicial será una lista vacía de tamaño $\frac{n}{3}$.
+        \item Añadir elementos: cada vez que añadamos una característica prohibida a la lista tabú, debemos eliminar la última ---aquella que lleva ya $\frac{n}{3}$ iteraciones en la lista---, con una estrategia FIFO.
+        \item Uso de la lista tabú: cada vez que generemos una solución con el operador $flip(s,f)$, debemos comprobar si $f$ está en la lista y aceptarla si y sólo si pasa el criterio de aspiración.
+    \end{itemize}
+
+    \subsection{Algoritmo de comparación}
+
+    Para la comparación de los algoritmos implementados consideraremos el algoritmo voraz \emph{Sequential forward selection}, cuyo pseudocódigo es el siguiente:
+
+    \begin{algorithm}
+        \caption{Algoritmo de comparación}\label{enfSimul}
+        \begin{algorithmic}[1]
+            \Function{sequentialForwardSelection}{train, target}
+            \State s $\gets$ genZeroSolution()
+            \State bestScore $\gets$ 0
+            \While{there was improvement with some feature}
+                \For{every feature f in not selected features}
+                    \State s $\gets$ addFeature(s,f)
+                    \State currentScore $\gets$ score(s, train, target)
+                    \If{currentScore $>$ bestScore}
+                    \State bestScore $\gets$ currentScore
+                    \State bestFeature $\gets$ f
+                    \EndIf
+                    \State s $\gets$ removeFeature(s,f)
+                \EndFor
+            \If{there was a best feature f}
+            \State s $\gets$ addFeature(s,f)
+            \EndIf
+            \EndWhile
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    La idea es sencilla: en cada iteración escogemos la característica, de entre las aún no seleccionadas, que mejor valor de la función objetivo produce, si y sólo si este valor es mejor que el actual.
+
+    \section{Desarrollo de la práctica}
+
+    La práctica se ha desarrollado por completo en Python, definiendo cada algoritmo en una función diferente con cabeceras similares ---mismo número y tipo de parámetros--- con el fin de poder automatizar el proceso de recogida de datos.
+
+    \subsection{\emph{Framework} de aprendizaje automático}
+    Se ha usado, además, el módulo \emph{Scikit-learn}, del que se han usado las siguientes funcionalidades:
+    \begin{itemize}
+        \item Particionamiento de los datos. \emph{Scikit-learn} aporta una función para hacer un particinado aleatorio de los datos en una parte de aprendizaje y otra de test. Esto se ha usado para implementar la téxnica $5\times2$ \emph{cross-validation}.
+        \item Evaluación de la función objetivo. \emph{Scikit-learn} tiene implementado el algoritmo de los $k$ vecinos más cercanos, además de la técnica del \emph{leave-one-out}, usada en la evaluación de cada una de las soluciones consideradas para cada algoritmo
+    \end{itemize}
+
+    \subsection{Manual de usuario}
+    Para la ejecución de la práctica es necesario tener instalado Python 3 y el módulo \emph{Scikit-learn}.
+
+    Todo se encuentra automatizado en el fichero \emph{characteristicSelection.py}, así que sólo es necesario ejecutar la siguiente orden desde el directorio raíz de la práctica \emph{python characteristicSelection.py}
+
+    Así se ejecutarán todos los algoritmos con todas las bases de datos usando la ténica del  $5\times2$ \emph{cross-validation}. Las tablas generadas se guardarán en el directorio \emph{results}.
+
+    La semilla utilizada se inicializa al principio de la ejecución del programa con la línea \emph{np.random.seed(19921201)}
+
+
+    \section{Análisis de resultados}
+
+    En esta sección vamos a presentar los datos recogidos de la ejecución de todos los algoritmos con las tres bases de datos consideradas: \emph{WDBC}, \emph{Movement Libras} y \emph{Arrhytmia}. Las bases de datos se han considerado completas en todos los casos, tal y como se nos entregaron ---arreglando alguna columna defectuosa y homogeneizando el nombre de la columna de clasificación para poder automatizar el proceso---.
+
+    Para el análisis de cada algoritmo con cada base de datos se han generado cinco particiones aleatorias de los datos y se ha ejecutado el algoritmo considerando cada partición como datos de entrenamiento y test, con la técnica \emph{$5\times2$ cross-validation}.
+
+    En cada una de estas ejecuciones se han medido los siguientes datos:
+    \begin{itemize}
+        \item Tasa de clasificación en la partición de entrenamiento ---en \%---.
+        \item Tasa de clasificación en la partición de test ---en \%---.
+        \item Tasa de reducción de las características ---en \%---.
+        \item Tiempo de ejecución ---en segundos---.
+    \end{itemize}
+
+    Veamos ya los datos y analicemos los resultados obtenidos:
+
+    \subsection{Clasificador $k$-NN}
+    \begin{table}[!htb]
+        \maketable{\dataKNN}
+        \caption{Datos del clasificador $k$-NN}
+        \label{knn}
+    \end{table}
+
+    En la tabla \ref{knn} se pueden ver los datos obtenidos del clasificador $k$-NN. La selección de características en este algoritmo es nula, ya que es la propia función objetivo considerando la totalidad de las características. Aún así, se ha añadido aquí para conocer la tasa de clasificación en los conjuntos de entrenamiento y de test considerando como solución la trivial: esto es, todas las características.
+
+    Como vemos, aunque en la primera base de datos las tasas de clasificación son buenas, en las otras dos son muy mejorables, lo que nos da una idea de la necesidad de la reducción de características.
+
+    \subsection{Algoritmo de comparación}
+    \begin{table}[!htb]
+        \maketable{\dataSFS}
+        \caption{Datos del algoritmo \emph{Sequential forward selection}}
+        \label{sfs}
+    \end{table}
+
+    En la tabla \ref{sfs} vemos los resultados del algoritmo de comparación, el \emph{Sequential forward selection}. Este algoritmo voraz tiene una alta tasa de reducción de características, pero la tasa de clasificación no mejora la del clasificador con la solución trivial.
+
+    Esto se debe a que consideramos cada característica de una forma secuencial, y una vez seleccionamos una, es imposible descartarla. Aún así, este algoritmo podría ser interesante si lo que buscamos es una reducción drástica del número de características ---como vemos, sobre le 80\%--- sin perder mucha información ---las tasas de clasificación son más o menos iguales a las del clasificador con la solución trivial---.
+
+    \subsection{Búsqueda local primero el mejor}
+    \begin{table}[!htb]
+        \maketable{\dataBF}
+        \caption{Datos de la búsqueda primero el mejor}
+        \label{bf}
+    \end{table}
+
+    En la tabla \ref{bf} vemos los datos de la primera metaheurística real considerada: la búsqueda local primero el mejor.
+
+    Esta metaheurística consigue unas tasas de clasificación algo mejores que en los casos anteriores y, sobre todo, es muchísimo más rápida que el algoritmo SFS.
+
+    Esto se debe a que es un algoritmo que aglutina la naturaleza casi voraz del SFS pero atendiendo a criterios mucho más sensatos. Vemos así cómo la búsqueda en el entorno de soluciones, generando vecinos y usando algún criterio para seleccionarlos ---en este caso, el que sea mejor de entre los vecinos--- es una buena estrategia ---sobre todo en tiempo--- para este problema.
+
+    \subsection{Enfriamiento simulado}
+    \begin{table}[!htb]
+        \maketable{\dataSA}
+        \caption{Datos del enfriamiento simulado}
+        \label{sa}
+    \end{table}
+
+    En la tabla \ref{sa} se encuentran los datos referentes a la ejecución del enfriamiento simulado sobre todas las bases de datos.
+
+    Vemos cómo conseguimos una tasa de clasificación fuera de la muestra algo mejor que en el algoritmo anterior, aunque los tiempos ahora se disparan.
+
+    La tasa de reducción, sin embargo, es también mayor, así que si buscamos una reducción que permita acelerar futuros procesos de aprendizaje ---no olvidemos que el objetivo de nuestro problema es facilitar el trabajo ed algoritmos de aprendizaje posteriores--- y un aumento en la tasa de clasificación, aunque pequeño, es altamente valorado, este algoritmo es el mejor de los que hemos visto hasta ahora.
+
+    Sin embargo, si el tiempo es una restricción muy grande, la búsqueda local es una solución mucho mejor
+
+    \subsection{Búsqueda tabú básica}
+    \begin{table}[!htb]
+        \maketable{\dataTS}
+        \caption{Datos de la búsqueda tabú básica}
+        \label{ts}
+    \end{table}
+
+    En la tabla \ref{ts} vemos los datos de la última metaheurística considerada: la búsqueda tabú básica.
+
+    Lo primero que llama la atención es el tiempo usado en la ejecución. A este algoritmo no se le han añadido más condiciones de parada que llegar al número máximo de evaluaciones, así que se tienen que recorrer 15000 soluciones, además de mantener la lista tabú y hacer todas las comprobaciones necesarias. Es un algoritmo computacionalmente costoso.
+
+    Los resultados, además, no son mucho mejores a los anteriores. Si consideramos, por ejemplo, la base de datos \emph{WDBC} vemos que el coste de pasar de algo más de un minuto a más de una hora proporciona una tasa de clasificación sólo $0.17$ puntos mejor.
+
+    La tasa de reducción sí mejora algo más en este caso, así que si esta reducción va a tener un impacto muy grande en el algoritmo de aprendizaje posterior ---probablemente incluso más costoso que este---, esta metaheurística puede ser considerada.
+
+    \subsection{Datos generales}
+    \begin{table}[!htb]
+        \maketablemean{\dataMedias}
+        \caption{Datos generales}
+        \label{medias}
+    \end{table}
+
+    En la tabla \ref{medias} vemos un resumen de todos los datos obtenidos tras las ejecuciones de las metaheurísticas con las bases de datos.
+
+    Vemos ahora más claro el coste computacional de la búsqueda tabú, varias veces más grande que cualquier de los otros algoritmos. La reducción de características en el SFS es otro dato que llama la atención: no debe sorprendernos, sin mebargo, ya que al ir escogiendo las características secuencialmente, es difícil que alguna no añada algo de mejora ---salvo al final, cuando ya se han descartado las características malas o posiblemente ruidosas---.
+
+    Un último aspecto a edstacar es la poca diferencia en la tasa de clasificación fuera de la muestra, que es la que realmente nos interesa. Es normal, sin embargo, ya que el espacio de búsqueda es extremeadamente grande y, aunque la búsqueda sea mucho más exhaustiva, nada nos garantiza conseguir soluciones mucho mejores.
+
+    Sin embargo, hay que tener siempre en cuenta que este es un paso previo para algoritmos de aprendizaje, así que cualquier mejora, por pequeña que sea, puede derivar en una gran reducción del tiempo en y aumento del éxito en los algoritmos posteriores.
 \end{document}

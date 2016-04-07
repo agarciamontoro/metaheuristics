@@ -12,7 +12,7 @@ from algorithms.simplePaths import simulatedAnnealing, tabuSearch
 
 def loadDataSet(fileName):
     # Read data
-    data, metaData = arff.loadarff("./data/wdbc.arff")
+    data, metaData = arff.loadarff(fileName)
 
     # Divide features data and classes classification
     train = data[metaData.names()[:-1]]
@@ -32,6 +32,9 @@ def loadDataSet(fileName):
     return data
 
 if __name__ == "__main__":
+    # Set random seed
+    np.random.seed(19921201)
+
     # Initialize 3-NN classifier
     knnClassifier = KNeighborsClassifier(n_neighbors=3, n_jobs=1)
 
@@ -97,8 +100,8 @@ if __name__ == "__main__":
                     init = 4*dataIdx
                     tables[algStr][2*exp + partIdx][init: init+4] = results
 
-                    now = str(int(time.time()))
-                    np.savetxt("results/" + algStr + "_" + now + "_temp.csv",
+                    # Save temp file
+                    np.savetxt("results/" + algStr + "_temp.csv",
                                tables[algStr],
                                delimiter=",",
                                fmt="%3.4f")
@@ -113,7 +116,7 @@ if __name__ == "__main__":
         meanValues = tables[algStr].mean(axis=0)
 
         # Append the mean values to the bottom of the table
-        tables[algStr].append(meanValues)
+        tables[algStr] = np.vstack((tables[algStr], meanValues))
 
         # Save the table :)
         np.savetxt("results/" + algStr + ".csv", tables[algStr],

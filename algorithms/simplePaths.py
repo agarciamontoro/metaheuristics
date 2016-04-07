@@ -108,9 +108,6 @@ def simulatedAnnealing(train, target, classifier):
 
 def tabuSearch(train, target, classifier):
     # Number of features in training data
-    numSamples = train.shape[0]
-
-    # Number of features in training data
     numFeatures = train.shape[1]
 
     # Initial and best solution
