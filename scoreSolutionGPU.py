@@ -7,16 +7,10 @@ import jinja2
 # the apropiate tools in the pycuda module.
 import pycuda.autoinit
 
+
 class knnLooGPU:
     def __init__(self, numSamples, numFeatures, k):
-        self.NUM_SAMPLES = numSamples
-        self.NUM_FEATURES = numFeatures
-
-        self.NUM_BLOCKS = 64
-        self.NUM_THREADS_PER_BLOCK = np.ceil(self.NUM_SAMPLES /
-                                             self.NUM_BLOCKS)
-
-        # ==================== KERNEL TEMPLATE RENDERING ==================== #
+        # ==================== KERNEL TEMPLATE LOADING ==================== #
 
         # We must construct a FileSystemLoader object to load templates off
         # the filesystem
@@ -28,25 +22,37 @@ class knnLooGPU:
 
         # Read the template file using the environment object.
         # This also constructs our Template object.
-        template = templateEnv.get_template("kernel.cu")
+        self.templateCode = templateEnv.get_template("kernel.cu")
+
+        # =========================== COMPILATION =========================== #
+        self.init(numSamples, numFeatures, k)
+
+    def init(self, numSamples, numFeatures, k):
+        # ==================== KERNEL TEMPLATE RENDERING ==================== #
+        self.NUM_SAMPLES = numSamples
+        self.NUM_FEATURES = numFeatures
+
+        self.NUM_BLOCKS = 64
+        self.NUM_THREADS_PER_BLOCK = np.ceil(self.NUM_SAMPLES /
+                                             self.NUM_BLOCKS)
 
         # Specify any input variables to the template as a dictionary.
-        templateVars = {
+        self.templateVars = {
             "NUM_SAMPLES": self.NUM_SAMPLES,
             "NUM_FEATURES": self.NUM_FEATURES,
             "K": k
         }
 
         # Finally, process the template to produce our final text.
-        kernel = template.render(templateVars)
+        kernel = self.templateCode.render(self.templateVars)
 
         # ======================= KERNEL COMPILATION ======================= #
 
         # Compile the kernel code using pycuda.compiler
-        mod = compiler.SourceModule(kernel)
+        self.compiledCode = compiler.SourceModule(kernel)
 
         # Get the kernel function from the compiled module
-        self.GPUscoreSolution = mod.get_function("scoreSolution")
+        self.GPUscoreSolution = self.compiledCode.get_function("scoreSolution")
 
     def scoreSolution(self, features, target):
         results = np.zeros(len(target), dtype=np.int32)
