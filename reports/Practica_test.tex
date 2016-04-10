@@ -1,0 +1,75 @@
+\documentclass[a4paper, 11pt, titlepage]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{kvoptions-patch}
+\usepackage[title={Práctica 1: Búsquedas con trayectorias simples}]{estilo}
+
+\makeatletter
+ \renewcommand{\ALG@name}{Pseudocódigo}
+\makeatother
+
+\pgfplotstableread[col sep=comma]{../results/knn.csv}\dataKNN
+\pgfplotstableread[col sep=comma]{../results/SFS.csv}\dataSFS
+\pgfplotstableread[col sep=comma]{../results/bestFirst.csv}\dataBF
+\pgfplotstableread[col sep=comma]{../results/simulatedAnnealing.csv}\dataSA
+\pgfplotstableread[col sep=comma]{../results/tabuSearch.csv}\dataTS
+\pgfplotstableread[col sep=comma]{../results/globalMeans.csv}\dataMedias
+
+\begin{document}
+
+    \maketitle
+
+    \pagenumbering{roman}
+    \tableofcontents
+    \newpage
+
+    \pagenumbering{arabic}
+
+    \section{Testing}
+
+    \subsection{Clasificador $k$-NN}
+    \begin{table}[!htb]
+        \maketable{\dataKNN}
+        \caption{Datos del clasificador $k$-NN}
+        \label{knn}
+    \end{table}
+
+
+    \subsection{Algoritmo de comparación}
+    \begin{table}[!htb]
+        \maketable{\dataSFS}
+        \caption{Datos del algoritmo \emph{Sequential forward selection}}
+        \label{sfs}
+    \end{table}
+
+
+    \subsection{Búsqueda local primero el mejor}
+    \begin{table}[!htb]
+        \maketable{\dataBF}
+        \caption{Datos de la búsqueda primero el mejor}
+        \label{bf}
+    \end{table}
+
+
+    \subsection{Enfriamiento simulado}
+    \begin{table}[!htb]
+        \maketable{\dataSA}
+        \caption{Datos del enfriamiento simulado}
+        \label{sa}
+    \end{table}
+
+
+    \subsection{Búsqueda tabú básica}
+    \begin{table}[!htb]
+        \maketable{\dataTS}
+        \caption{Datos de la búsqueda tabú básica}
+        \label{ts}
+    \end{table}
+
+
+    \subsection{Datos generales}
+    \begin{table}[!htb]
+        \maketablemean{\dataMedias}
+        \caption{Datos generales}
+        \label{medias}
+    \end{table}
+\end{document}

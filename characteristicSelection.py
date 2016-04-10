@@ -8,6 +8,7 @@ from algorithms.utils import loadDataSet
 from algorithms.greedy import SFS
 from algorithms.localSearch import bestFirst
 from algorithms.simplePaths import simulatedAnnealing, tabuSearch
+from algorithms.knn import knn
 
 from scoreSolutionGPU import knnLooGPU
 
@@ -25,7 +26,7 @@ if __name__ == "__main__":
     numExperiments = 5
 
     # List of algorithms
-    metaheuristics = [SFS, bestFirst, simulatedAnnealing, tabuSearch]
+    metaheuristics = [knn]
 
     # List of data sets
     datasets = ["./data/wdbc.arff",

@@ -1,4 +1,4 @@
-#define NUM_SAMPLES {{ NUM_SAMPLES }}
+#define MAX_NUM_SAMPLES {{ MAX_NUM_SAMPLES }}
 #define MAX_NUM_FEATURES {{ MAX_NUM_FEATURES }}
 #define K   {{ K }}
 
@@ -60,7 +60,8 @@ __device__ int votingMethod(int* arr, int size) {
 }
 
 __global__ void scoreSolution(void *devSamples, void *devTarget,
-							  void *devResult, int numFeatures){
+							  void *devResult, int numFeatures,
+							  int numSamples){
     // Pointers to the features, the target and the result
     float* globalSamples = (float*)devSamples;
     int* globalTarget = (int*)devTarget;
@@ -70,7 +71,7 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
     // thread
     int sample = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if(sample >= NUM_SAMPLES){
+	if(sample >= numSamples){
 		return;
 	}
 
@@ -98,7 +99,7 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
 	float2 newSample;
 
     // Distances between my sample and all the others
-    for(int i=0; i<NUM_SAMPLES; i++){
+    for(int i=0; i<numSamples; i++){
         if(i == sample){
             continue;
         }

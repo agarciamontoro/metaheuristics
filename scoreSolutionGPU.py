@@ -38,7 +38,7 @@ class knnLooGPU:
 
         # Specify any input variables to the template as a dictionary.
         self.templateVars = {
-            "NUM_SAMPLES": self.NUM_SAMPLES,
+            "MAX_NUM_SAMPLES": self.NUM_SAMPLES,
             "MAX_NUM_FEATURES": self.NUM_FEATURES,
             "K": k
         }
@@ -57,6 +57,7 @@ class knnLooGPU:
     def scoreSolution(self, features, target):
         results = np.zeros(len(target), dtype=np.int32)
 
+        numSamples = features.shape[0]
         numFeatures = features.shape[1]
 
         # Transfer host (CPU) memory to device (GPU) memory
@@ -71,6 +72,7 @@ class knnLooGPU:
             targetGPU,
             resultsGPU,
             np.int32(numFeatures),
+            np.int32(numSamples),
 
             # Grid definition -> number of blocks x number of blocks.
             grid=(self.NUM_BLOCKS, 1, 1),
