@@ -1,7 +1,3 @@
-from algorithms.utils import loadDataSet, scoreSolution
-from sklearn.neighbors import KNeighborsClassifier
-
-import time
 import numpy as np
 from pycuda import driver, compiler, gpuarray, tools
 import jinja2
@@ -11,101 +7,80 @@ import jinja2
 # the apropiate tools in the pycuda module.
 import pycuda.autoinit
 
-# Read data
-data = loadDataSet("./data/wdbc.arff")
+class knnLooGPU:
+    def __init__(self, numSamples, numFeatures, k):
+        self.NUM_SAMPLES = numSamples
+        self.NUM_FEATURES = numFeatures
 
-NUM_SAMPLES = data["features"].shape[0]
-NUM_FEATURES = data["features"].shape[1]
+        self.NUM_BLOCKS = 64
+        self.NUM_THREADS_PER_BLOCK = np.ceil(self.NUM_SAMPLES /
+                                             self.NUM_BLOCKS)
 
-NUM_BLOCKS = 64
-NUM_THREADS_PER_BLOCK = np.ceil(NUM_SAMPLES / NUM_BLOCKS)
+        # ==================== KERNEL TEMPLATE RENDERING ==================== #
 
-print(NUM_BLOCKS, NUM_THREADS_PER_BLOCK)
+        # We must construct a FileSystemLoader object to load templates off
+        # the filesystem
+        templateLoader = jinja2.FileSystemLoader(searchpath="./")
 
-# Initialize 3-NN classifier
-knnClassifier = KNeighborsClassifier(n_neighbors=3, n_jobs=1)
+        # An environment provides the data necessary to read and
+        # parse our templates.  We pass in the loader object here.
+        templateEnv = jinja2.Environment(loader=templateLoader)
 
-scoreSolution(data["features"], data["target"], knnClassifier)
+        # Read the template file using the environment object.
+        # This also constructs our Template object.
+        template = templateEnv.get_template("kernel.cu")
 
-# ======================== KERNEL TEMPLATE RENDERING ======================== #
+        # Specify any input variables to the template as a dictionary.
+        templateVars = {
+            "NUM_SAMPLES": self.NUM_SAMPLES,
+            "NUM_FEATURES": self.NUM_FEATURES,
+            "K": k
+        }
 
-# We must construct a FileSystemLoader object to load templates off
-# the filesystem
-templateLoader = jinja2.FileSystemLoader(searchpath="./")
+        # Finally, process the template to produce our final text.
+        kernel = template.render(templateVars)
 
-# An environment provides the data necessary to read and
-# parse our templates.  We pass in the loader object here.
-templateEnv = jinja2.Environment(loader=templateLoader)
+        # ======================= KERNEL COMPILATION ======================= #
 
-# Read the template file using the environment object.
-# This also constructs our Template object.
-template = templateEnv.get_template("kernel.cu")
+        # Compile the kernel code using pycuda.compiler
+        mod = compiler.SourceModule(kernel)
 
-# Specify any input variables to the template as a dictionary.
-templateVars = {
-    "NUM_SAMPLES": NUM_SAMPLES,
-    "NUM_FEATURES": NUM_FEATURES,
-    "K": 3
-}
+        # Get the kernel function from the compiled module
+        self.GPUscoreSolution = mod.get_function("scoreSolution")
 
-# Finally, process the template to produce our final text.
-kernel = template.render(templateVars)
+    def scoreSolution(self, features, target):
+        results = np.zeros(len(target), dtype=np.int32)
 
-# =========================== KERNEL COMPILATION =========================== #
+        # Transfer host (CPU) memory to device (GPU) memory
+        featuresGPU = gpuarray.to_gpu(features)
+        targetGPU = gpuarray.to_gpu(target)
+        resultsGPU = gpuarray.to_gpu(results)
 
-# Compile the kernel code using pycuda.compiler
-mod = compiler.SourceModule(kernel)
+        # Create two timers for measuring time
+        start = driver.Event()
+        end = driver.Event()
 
-# Get the kernel function from the compiled module
-GPUscoreSolution = mod.get_function("scoreSolution")
+        start.record()  # start timing
 
-# ============================ ACTUAL EXECUTION ============================ #
+        # Call the kernel on the card
+        self.GPUscoreSolution(
+            # inputs
+            featuresGPU,
+            targetGPU,
+            resultsGPU,
 
-results = np.zeros(len(data["target"]), dtype=np.int32)
+            # Grid definition -> number of blocks x number of blocks.
+            grid=(self.NUM_BLOCKS, 1, 1),
+            # block definition -> number of threads x number of threads
+            block=(int(self.NUM_THREADS_PER_BLOCK), 1, 1),
+        )
 
-# Transfer host (CPU) memory to device (GPU) memory
-featuresGPU = gpuarray.to_gpu(data["features"])
-targetGPU = gpuarray.to_gpu(data["target"])
-resultsGPU = gpuarray.to_gpu(results)
+        results = resultsGPU.get()
+        scoreGPU = sum(results)/len(results)
 
-# Create two timers for measuring time
-start = driver.Event()
-end = driver.Event()
+        end.record()
+        end.synchronize()
 
-start.record()  # start timing
+        timeGPU = start.time_till(end)*1e-3
 
-# Call the kernel on the card
-GPUscoreSolution(
-    # inputs
-    featuresGPU,
-    targetGPU,
-    resultsGPU,
-
-    # Grid definition -> number of blocks x number of blocks.
-    grid=(NUM_BLOCKS, 1, 1),
-    # block definition -> number of threads x number of threads
-    block=(int(NUM_THREADS_PER_BLOCK), 1, 1),
-)
-
-results = resultsGPU.get()
-scoreGPU = sum(results)/len(results)
-
-end.record()
-
-end.synchronize()
-timeGPU = start.time_till(end)*1e-3
-
-# Initialize 3-NN classifier
-knnClassifier = KNeighborsClassifier(n_neighbors=3, n_jobs=1)
-
-start = time.time()
-scoreCPU = scoreSolution(data["features"], data["target"], knnClassifier)
-end = time.time()
-
-timeCPU = end - start
-
-print("CPU:", scoreCPU, timeCPU)
-print("GPU:", 100*scoreGPU, timeGPU)
-print("La ejecución en CPU es al menos",
-      int(np.floor(timeCPU / timeGPU)),
-      "veces más rápido.")
+        return scoreGPU, timeGPU
