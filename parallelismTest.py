@@ -22,7 +22,7 @@ knnClassifier = KNeighborsClassifier(n_neighbors=3, n_jobs=1)
 
 # CPU execution
 start = time.time()
-solutionCPU, scoreCPU = bestFirst(data["features"], data["target"],
+solutionCPU, scoreCPU = SFS(data["features"], data["target"],
                                   knnClassifier)
 end = time.time()
 
@@ -30,7 +30,7 @@ timeCPU = end - start
 
 # GPU execution
 start = time.time()
-solutionGPU, scoreGPU = bestFirstGPU(data["features"], data["target"],
+solutionGPU, scoreGPU = SFSGPU(data["features"], data["target"],
                                      scorerGPU)
 end = time.time()
 

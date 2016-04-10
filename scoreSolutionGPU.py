@@ -54,13 +54,15 @@ class knnLooGPU:
         # Get the kernel function from the compiled module
         self.GPUscoreSolution = self.compiledCode.get_function("scoreSolution")
 
-    def scoreSolution(self, features, target, numFeatures):
+    def scoreSolution(self, features, target):
         results = np.zeros(len(target), dtype=np.int32)
+
+        numFeatures = features.shape[1]
 
         # Transfer host (CPU) memory to device (GPU) memory
         featuresGPU = gpuarray.to_gpu(features.flatten())
-        targetGPU = gpuarray.to_gpu(target.flatten())
-        resultsGPU = gpuarray.to_gpu(results.flatten())
+        targetGPU = gpuarray.to_gpu(target)
+        resultsGPU = gpuarray.to_gpu(results)
 
         # Call the kernel on the card
         self.GPUscoreSolution(

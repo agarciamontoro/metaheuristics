@@ -175,8 +175,7 @@ def tabuSearchGPU(train, target, scorerGPU):
 
     # Initial and best score
     bestScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                        target,
-                                        selectedFeatures.sum())
+                                        target)
 
     # Initialize tabu list with invalid indexes and fix its size to n/3
     tabuListDim = numFeatures // 3
@@ -196,8 +195,7 @@ def tabuSearchGPU(train, target, scorerGPU):
 
             # Get the current score from the K-NN classifier
             currentScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                                   target,
-                                                   selectedFeatures.sum())
+                                                   target)
 
             numEvaluations += 1
 

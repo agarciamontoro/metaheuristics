@@ -42,8 +42,7 @@ def bestFirstGPU(train, target, scorerGPU):
 
     improvementFound = True
     bestScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                        target,
-                                        selectedFeatures.sum())
+                                        target)
 
     while improvementFound:
         improvementFound = False
@@ -53,8 +52,7 @@ def bestFirstGPU(train, target, scorerGPU):
 
             # Get the current score from the K-NN classifier
             currentScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                                   target,
-                                                   selectedFeatures.sum())
+                                                   target)
 
             # Update best score and solution
             if currentScore > bestScore:
