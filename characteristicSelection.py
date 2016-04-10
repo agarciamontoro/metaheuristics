@@ -1,35 +1,13 @@
 import time
 import numpy as np
-from scipy.io import arff
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.cross_validation import StratifiedKFold
-from sklearn.preprocessing import MinMaxScaler
+
+from algorithms.utils import loadDataSet
 
 from algorithms.greedy import SFS
 from algorithms.localSearch import bestFirst
 from algorithms.simplePaths import simulatedAnnealing, tabuSearch
-
-
-def loadDataSet(fileName):
-    # Read data
-    data, metaData = arff.loadarff(fileName)
-
-    # Divide features data and classes classification
-    train = data[metaData.names()[:-1]]
-    target = data["class"]
-
-    # Encapsulate all data in a dictionary
-    data = {
-        # Necessary to deal with numpy.void
-        "features": np.asarray(train.tolist(), dtype=np.float32),
-        "target": np.asarray(target.tolist(), dtype=np.int32)
-    }
-
-    # Normalize data
-    normalizer = MinMaxScaler()
-    data["features"] = normalizer.fit_transform(data["features"])
-
-    return data
 
 if __name__ == "__main__":
     # Set random seed
