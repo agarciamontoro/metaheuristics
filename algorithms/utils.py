@@ -27,7 +27,6 @@ def loadDataSet(fileName):
     return data
 
 
-
 def scoreSolution(data, target, knnClassifier):
     # Number of samples in data training
     size = data.shape[0]

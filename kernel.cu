@@ -1,21 +1,12 @@
 #define NUM_SAMPLES {{ NUM_SAMPLES }}
-#define NUM_FEATURES {{ NUM_FEATURES }}
+#define MAX_NUM_FEATURES {{ MAX_NUM_FEATURES }}
 #define K   {{ K }}
 
-#include <stdlib.h>     /* qsort */
-
-/**
- * Computes the interaction between two bodies given their positions and the
- * acceleration of the first one
- * @param  bi            First body positions and mass
- * @param  bj            Second body positions and mass
- * @param  ai            Acceleration of the first body
- * @return               Updated acceleration for the first body
- */
-__device__ float computeDistance(float* myFeatures, float* otherFeatures){
+__device__ float computeDistance(float* myFeatures, float* otherFeatures,
+								 int numFeatures){
 	float distance = 0;
 
-    for (size_t i = 0; i < NUM_FEATURES; i++) {
+    for (size_t i = 0; i < numFeatures; i++) {
         distance += (myFeatures[i] - otherFeatures[i]) *
 					(myFeatures[i] - otherFeatures[i]);
     }
@@ -38,13 +29,6 @@ __device__ void bubble_sort (float2* a, int n) {
             }
         }
     }
-}
-
-
-__device__ int compare(const void* a, const void* b){
-  if ( (*(float2*)a).y <  (*(float2*)b).y ) return -1;
-  if ( (*(float2*)a).y == (*(float2*)b).y ) return 0;
-  return 1;
 }
 
 __device__ void updateKNearest(float2* kNearest, float2 newSample){
@@ -76,7 +60,7 @@ __device__ int votingMethod(int* arr, int size) {
 }
 
 __global__ void scoreSolution(void *devSamples, void *devTarget,
-							  void *devResult){
+							  void *devResult, int numFeatures){
     // Pointers to the features, the target and the result
     float* globalSamples = (float*)devSamples;
     int* globalTarget = (int*)devTarget;
@@ -90,17 +74,17 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
 		return;
 	}
 
-    int initOfMyFeatures = sample * NUM_FEATURES;
-    float myFeatures[NUM_FEATURES];
+    int initOfMyFeatures = sample * numFeatures;
+    float myFeatures[MAX_NUM_FEATURES];
 
     // Population of my features
-    for(int i=0; i<NUM_FEATURES; i++){
+    for(int i=0; i<numFeatures; i++){
             myFeatures[i] = globalSamples[initOfMyFeatures + i];
     }
 
 	float2 inf;
 	inf.x = -1;
-	inf.y = 9999999;
+	inf.y = 99999999;
 
 	// K (plus one in order to ease the update function) nearest neighbours
 	// x: sample index
@@ -112,7 +96,6 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
 	}
 
 	float2 newSample;
-	float distance;
 
     // Distances between my sample and all the others
     for(int i=0; i<NUM_SAMPLES; i++){
@@ -120,11 +103,10 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
             continue;
         }
 
-        distance = computeDistance(myFeatures,
-								   globalSamples + i * NUM_FEATURES);
-
 		newSample.x = i;
-		newSample.y = distance;
+		newSample.y = computeDistance(myFeatures,
+									  globalSamples + i * numFeatures,
+									  numFeatures);
 
 		updateKNearest(kNearest, newSample);
 	}

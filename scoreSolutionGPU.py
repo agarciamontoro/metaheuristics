@@ -39,7 +39,7 @@ class knnLooGPU:
         # Specify any input variables to the template as a dictionary.
         self.templateVars = {
             "NUM_SAMPLES": self.NUM_SAMPLES,
-            "NUM_FEATURES": self.NUM_FEATURES,
+            "MAX_NUM_FEATURES": self.NUM_FEATURES,
             "K": k
         }
 
@@ -54,19 +54,13 @@ class knnLooGPU:
         # Get the kernel function from the compiled module
         self.GPUscoreSolution = self.compiledCode.get_function("scoreSolution")
 
-    def scoreSolution(self, features, target):
+    def scoreSolution(self, features, target, numFeatures):
         results = np.zeros(len(target), dtype=np.int32)
 
         # Transfer host (CPU) memory to device (GPU) memory
-        featuresGPU = gpuarray.to_gpu(features)
-        targetGPU = gpuarray.to_gpu(target)
-        resultsGPU = gpuarray.to_gpu(results)
-
-        # Create two timers for measuring time
-        start = driver.Event()
-        end = driver.Event()
-
-        start.record()  # start timing
+        featuresGPU = gpuarray.to_gpu(features.flatten())
+        targetGPU = gpuarray.to_gpu(target.flatten())
+        resultsGPU = gpuarray.to_gpu(results.flatten())
 
         # Call the kernel on the card
         self.GPUscoreSolution(
@@ -74,6 +68,7 @@ class knnLooGPU:
             featuresGPU,
             targetGPU,
             resultsGPU,
+            np.int32(numFeatures),
 
             # Grid definition -> number of blocks x number of blocks.
             grid=(self.NUM_BLOCKS, 1, 1),
@@ -84,9 +79,4 @@ class knnLooGPU:
         results = resultsGPU.get()
         scoreGPU = sum(results)/len(results)
 
-        end.record()
-        end.synchronize()
-
-        timeGPU = start.time_till(end)*1e-3
-
-        return scoreGPU, timeGPU
+        return 100*scoreGPU
