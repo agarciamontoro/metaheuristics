@@ -9,9 +9,14 @@ from algorithms.greedy import SFS
 from algorithms.localSearch import bestFirst
 from algorithms.simplePaths import simulatedAnnealing, tabuSearch
 
+from scoreSolutionGPU import knnLooGPU
+
+import random
+
 if __name__ == "__main__":
-    # Set random seed
+    # Set random seeds
     np.random.seed(19921201)
+    random.seed(19921201)
 
     # Initialize 3-NN classifier
     knnClassifier = KNeighborsClassifier(n_neighbors=3, n_jobs=1)
@@ -35,6 +40,11 @@ if __name__ == "__main__":
     # Test all data sets
     for dataIdx, dataFileName in enumerate(datasets):
         data = loadDataSet(dataFileName)
+        numSamples = data["features"].shape[0]
+        numFeatures = data["features"].shape[1]
+
+        # Init GPU score solution
+        scorerGPU = knnLooGPU(numSamples, numFeatures, 3)
 
         # Repeat the experiment numExperiments times
         for exp in range(numExperiments):
@@ -58,7 +68,7 @@ if __name__ == "__main__":
                     # Select features and measure time
                     start = time.time()
                     solution, scoreIn = algorithm(featuresTrain, targetTrain,
-                                                  knnClassifier)
+                                                  scorerGPU)
                     end = time.time()
 
                     # Fit the training data -run the classifier-

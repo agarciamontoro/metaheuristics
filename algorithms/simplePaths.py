@@ -1,6 +1,6 @@
 import random
 from collections import deque
-from algorithms.utils import scoreSolution, genInitSolution, flip
+from algorithms.utils import genInitSolution, flip
 import numpy as np
 
 finalTemperature = 10**(-3)
@@ -39,7 +39,7 @@ def SA_generateCoolingScheme(T0, TF, maxIter, size):
     return SA_cool, SA_coolingNeeded
 
 
-def simulatedAnnealing(train, target, classifier):
+def simulatedAnnealing(train, target, scorerGPU):
     # Number of features in training data
     numFeatures = train.shape[1]
 
@@ -47,9 +47,8 @@ def simulatedAnnealing(train, target, classifier):
 
     bestSolution = np.copy(selectedFeatures)
 
-    bestScore = scoreSolution(train[:, bestSolution],
-                              target,
-                              classifier)
+    bestScore = scorerGPU.scoreSolution(train[:, bestSolution],
+                                        target)
 
     currentScore = bestScore
 
@@ -79,9 +78,8 @@ def simulatedAnnealing(train, target, classifier):
             numEvaluations += 1
 
             # Get the current score from the K-NN classifier
-            newScore = scoreSolution(train[:, selectedFeatures],
-                                     target,
-                                     classifier)
+            newScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
+                                               target)
 
             delta = currentScore - newScore
 
@@ -105,67 +103,7 @@ def simulatedAnnealing(train, target, classifier):
 # =========================================================================== #
 # =========================================================================== #
 
-
-def tabuSearch(train, target, classifier):
-    # Number of features in training data
-    numFeatures = train.shape[1]
-
-    # Initial and best solution
-    selectedFeatures = genInitSolution(numFeatures)
-    bestSolution = np.copy(selectedFeatures)
-
-    # Initial and best score
-    bestScore = scoreSolution(train[:, selectedFeatures],
-                              target,
-                              classifier)
-
-    # Initialize tabu list with invalid indexes and fix its size to n/3
-    tabuListDim = numFeatures // 3
-    tabuList = deque([-1 for i in range(tabuListDim)], maxlen=tabuListDim)
-
-    changedFeature = 0
-    numEvaluations = 0
-
-    while changedFeature is not None and numEvaluations < 15000:
-        bestLocalScore = 0.
-        changedFeature = None
-
-        # For every solution in the neighbourhood
-        for feature in random.sample(range(numFeatures), 30):
-            # Generate neighbour solution
-            flip(selectedFeatures, feature)
-
-            # Get the current score from the K-NN classifier
-            currentScore = scoreSolution(train[:, selectedFeatures],
-                                         target,
-                                         classifier)
-
-            numEvaluations += 1
-
-            # Reset to the local solution
-            flip(selectedFeatures, feature)
-
-            # Do not consider features in tabuList
-            if(feature in tabuList):
-                # Unless it produces a really good solution
-                if(currentScore > bestScore):
-                    bestScore = currentScore
-                    bestSolution = np.copy(selectedFeatures)
-
-            # Update best local neighbour
-            elif(currentScore > bestLocalScore):
-                bestLocalScore = currentScore
-                changedFeature = feature
-
-        # Add last change to tabu list and pick the new solution
-        if(changedFeature is not None):
-            tabuList.append(changedFeature)
-            flip(selectedFeatures, changedFeature)
-
-    return bestSolution, bestScore
-
-
-def tabuSearchGPU(train, target, scorerGPU):
+def tabuSearch(train, target, scorerGPU):
     # Number of features in training data
     numFeatures = train.shape[1]
 

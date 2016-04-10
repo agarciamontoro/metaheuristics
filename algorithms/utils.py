@@ -51,9 +51,6 @@ def scoreSolution(data, target, knnClassifier):
 
 # Returns the initial solution
 def genInitSolution(solSize):
-    # TODO: DELETE THE FOLLOWING LINE
-    np.random.seed(19921201)
-
     solution = np.random.randint(2, size=solSize)
     return np.asarray(solution, dtype=np.bool)
 
@@ -63,9 +60,6 @@ def flip(solution, feature):
 
 
 def randomly(seq):
-    # TODO: DELETE THE FOLLOWING LINE
-    random.seed(19921201)
-    
     shuffled = list(seq)
     random.shuffle(shuffled)
     return iter(shuffled)
