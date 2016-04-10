@@ -15,14 +15,14 @@ numSamples = data["features"].shape[0]
 numFeatures = data["features"].shape[1]
 
 # Init GPU score solution
-scorerGPU = knnLooGPU(numSamples, numFeatures, 1)
+scorerGPU = knnLooGPU(numSamples, numFeatures, 3)
 
 # Initialize 3-NN classifier
-knnClassifier = KNeighborsClassifier(n_neighbors=1, n_jobs=1)
+knnClassifier = KNeighborsClassifier(n_neighbors=3, n_jobs=1)
 
 # CPU execution
 start = time.time()
-solutionCPU, scoreCPU = SFS(data["features"], data["target"],
+solutionCPU, scoreCPU = bestFirst(data["features"], data["target"],
                                   knnClassifier)
 end = time.time()
 
@@ -30,7 +30,7 @@ timeCPU = end - start
 
 # GPU execution
 start = time.time()
-solutionGPU, scoreGPU = SFSGPU(data["features"], data["target"],
+solutionGPU, scoreGPU = bestFirstGPU(data["features"], data["target"],
                                      scorerGPU)
 end = time.time()
 
@@ -38,7 +38,7 @@ timeGPU = end - start
 if (solutionGPU == solutionCPU).all():
     print("Both solutions are the same. THE FUCKING SAME. C'MON!")
 else:
-    print("ERROR: the solutions differ")
+    print("ERROR: Sorry, the solutions differ :(")
 
 print("CPU:", scoreCPU, timeCPU)
 print("GPU:", scoreGPU, timeGPU)
