@@ -41,7 +41,7 @@ Call the scorer using the `scoreSolution` method of the `scorerGPU` object, pass
 * The `samples` array: a 2D numpy array, where the rows represent the samples and the columns the characteristics values. Note that you should pass the sliced data with only the selected characteristics.
 * The `target` array: a 1D numpy array of length equal to the number of rows in `samples`. The i-th element of this array represents the class of the i-th sample in `samples`
 
-For example:
+We can now complete our previous example:
 
 ```python
 from knnLooGPU import knnLooGPU
@@ -61,4 +61,4 @@ selectedFeatures = np.random.randint(2, size=numFeatures, dtype=np.bool)
 score = scorerGPU.scoreSolution(data[:, selectedFeatures], target)
 ```
 
-And that's it!
+Done! :)
