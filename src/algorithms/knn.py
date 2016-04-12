@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def knn(train, target, scorerGPU):
+def knn(train, target, v):
     # Number of features in training data
     size = train.shape[1]
 
@@ -9,6 +9,6 @@ def knn(train, target, scorerGPU):
     selectedFeatures = np.ones(size, dtype=np.bool)
 
     # Get the current score from the K-NN classifier
-    score = scorerGPU.scoreSolution(train[:, selectedFeatures], target)
+    score = scorer(train[:, selectedFeatures], target)
 
     return selectedFeatures, score

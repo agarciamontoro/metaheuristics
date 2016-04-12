@@ -7,11 +7,14 @@ import jinja2
 # the apropiate tools in the pycuda module.
 import pycuda.autoinit
 
+import os
+basePath = os.path.dirname(__file__)
+
 
 class knnLooGPU:
     """
-    Leave-one-out scorer using K nearest neighbour algorithm as the target function
-    for the characteristic selection problem.
+    Leave-one-out scorer using K nearest neighbour algorithm as the target
+    function for the characteristic selection problem.
     Implemented upon PyCUDA.
     """
     def __init__(self, numSamples, numFeatures, k):
@@ -22,13 +25,14 @@ class knnLooGPU:
             numFeatures: Number of features of each sample.
             k: Number of neighbours used to label the test sample.
 
-        Returns the scorer with the environment ready to run over the input data.
+        Returns the scorer with the environment ready to run over the input
+        data.
         """
         # ==================== KERNEL TEMPLATE LOADING ==================== #
 
         # We must construct a FileSystemLoader object to load templates off
         # the filesystem
-        templateLoader = jinja2.FileSystemLoader(searchpath="./")
+        templateLoader = jinja2.FileSystemLoader(searchpath=basePath)
 
         # An environment provides the data necessary to read and
         # parse our templates.  We pass in the loader object here.
@@ -38,7 +42,7 @@ class knnLooGPU:
         # This also constructs our Template object.
         self.templateCode = templateEnv.get_template("kernel.cu")
 
-        # =========================== INITIALIZATION =========================== #
+        # ========================= INITIALIZATION ========================= #
         self.init(numSamples, numFeatures, k)
 
     def init(self, numSamples, numFeatures, k):
@@ -97,10 +101,11 @@ class knnLooGPU:
             * samples: 2D numpy array, where the rows represent the samples
             and the columns the characteristics values.
             * target: 1D numpy array of length equal to the number of rows in
-            samples. The i-th of this array represents the class of the i-th sample.
+            samples. The i-th of this array represents the class of the i-th
+            sample.
 
-        Returns the mean ratio of success using K nearest neighbours as the target
-        function and the leave-one-out technique.
+        Returns the mean ratio of success using K nearest neighbours as the
+        target function and the leave-one-out technique.
         """
         # CPU binary array. The i-th value is 1 if the predicted label is
         # equal to the actual class and 0 if different.

@@ -1,7 +1,7 @@
 import numpy as np
-from algorithms.utils import scoreSolution
 
-def SFS(train, target, scorerGPU):
+
+def SFS(train, target, scorer):
     # Number of features in training data
     size = train.shape[1]
 
@@ -26,8 +26,7 @@ def SFS(train, target, scorerGPU):
             selectedFeatures[feature] = True
 
             # Get the current score from the K-NN classifier
-            currentScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                                   target)
+            currentScore = scorer(train[:, selectedFeatures], target)
 
             # Update best score and solution
             if currentScore > bestScore:

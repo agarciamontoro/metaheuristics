@@ -39,7 +39,7 @@ def SA_generateCoolingScheme(T0, TF, maxIter, size):
     return SA_cool, SA_coolingNeeded
 
 
-def simulatedAnnealing(train, target, scorerGPU):
+def simulatedAnnealing(train, target, scorer):
     # Number of features in training data
     numFeatures = train.shape[1]
 
@@ -47,8 +47,7 @@ def simulatedAnnealing(train, target, scorerGPU):
 
     bestSolution = np.copy(selectedFeatures)
 
-    bestScore = scorerGPU.scoreSolution(train[:, bestSolution],
-                                        target)
+    bestScore = scorer(train[:, bestSolution], target)
 
     currentScore = bestScore
 
@@ -64,7 +63,10 @@ def simulatedAnnealing(train, target, scorerGPU):
     acceptedNeighbourgs = 1
     numEvaluations = 0
 
-    while temperature > finalTemperature and acceptedNeighbourgs > 0 and numEvaluations < 15000:
+    while temperature > finalTemperature and\
+            acceptedNeighbourgs > 0 and\
+            numEvaluations < 15000:
+
         # Number of accepted neighbours
         acceptedNeighbourgs = 0
 
@@ -78,8 +80,7 @@ def simulatedAnnealing(train, target, scorerGPU):
             numEvaluations += 1
 
             # Get the current score from the K-NN classifier
-            newScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                               target)
+            newScore = scorer(train[:, selectedFeatures], target)
 
             delta = currentScore - newScore
 
@@ -103,7 +104,7 @@ def simulatedAnnealing(train, target, scorerGPU):
 # =========================================================================== #
 # =========================================================================== #
 
-def tabuSearch(train, target, scorerGPU):
+def tabuSearch(train, target, scorer):
     # Number of features in training data
     numFeatures = train.shape[1]
 
@@ -112,8 +113,7 @@ def tabuSearch(train, target, scorerGPU):
     bestSolution = np.copy(selectedFeatures)
 
     # Initial and best score
-    bestScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                        target)
+    bestScore = scorer(train[:, selectedFeatures], target)
 
     # Initialize tabu list with invalid indexes and fix its size to n/3
     tabuListDim = numFeatures // 3
@@ -132,8 +132,7 @@ def tabuSearch(train, target, scorerGPU):
             flip(selectedFeatures, feature)
 
             # Get the current score from the K-NN classifier
-            currentScore = scorerGPU.scoreSolution(train[:, selectedFeatures],
-                                                   target)
+            currentScore = scorer(train[:, selectedFeatures], target)
 
             numEvaluations += 1
 

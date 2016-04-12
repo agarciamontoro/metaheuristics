@@ -5,14 +5,16 @@ from sklearn.cross_validation import StratifiedKFold
 
 from algorithms.utils import loadDataSet
 
+from algorithms.knn import knn
 from algorithms.greedy import SFS
 from algorithms.localSearch import bestFirst
 from algorithms.simplePaths import simulatedAnnealing, tabuSearch
-from algorithms.knn import knn
 
-from scoreSolutionGPU import knnLooGPU
+from knnGPU.knnLooGPU import knnLooGPU
 
 import random
+
+import os
 
 if __name__ == "__main__":
     # Set random seeds
@@ -26,12 +28,16 @@ if __name__ == "__main__":
     numExperiments = 5
 
     # List of algorithms
-    metaheuristics = [knn]
+    metaheuristics = [knn, SFS, bestFirst, simulatedAnnealing, tabuSearch]
 
     # List of data sets
-    datasets = ["./data/wdbc.arff",
-                "./data/movement_libras.arff",
-                "./data/arrhythmia.arff"]
+    srcPath = os.path.dirname(os.path.realpath(__file__))
+    basePath = os.path.join(srcPath, os.pardir)
+    dataPath = os.path.join(basePath, "data")
+
+    datasets = [os.path.join(dataPath, "wdbc.arff"),
+                os.path.join(dataPath, "movement_libras.arff"),
+                os.path.join(dataPath, "arrhythmia.arff")]
 
     # Initialization of final data tables
     tables = {}
@@ -69,7 +75,7 @@ if __name__ == "__main__":
                     # Select features and measure time
                     start = time.time()
                     solution, scoreIn = algorithm(featuresTrain, targetTrain,
-                                                  scorerGPU)
+                                                  scorerGPU.scoreSolution)
                     end = time.time()
 
                     # Fit the training data -run the classifier-
