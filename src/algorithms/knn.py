@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def knn(train, target, v):
+def knn(train, target, scorer):
     # Number of features in training data
     size = train.shape[1]
 

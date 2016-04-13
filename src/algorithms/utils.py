@@ -49,6 +49,13 @@ def scoreSolution(data, target, knnClassifier):
     return 100 * (finalScore / size)
 
 
+def getCPUScorer(knnClassifier):
+    def scorer(data, target):
+        return scoreSolution(data, target, knnClassifier)
+
+    return scorer
+
+
 # Returns the initial solution
 def genInitSolution(solSize):
     solution = np.random.randint(2, size=solSize)
