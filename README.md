@@ -1,9 +1,15 @@
-# metaheuristics
-Learning metaheuristics through practice.
+# Metaheuristics
+Metaheuristics comparison for solving the characteristics selection problem, whose solutions are scored with the K nearest neighbours algorithm. The implemented metaheuristics are the following:
+
+* Sequential forward selection
+* Best first local search
+* Simulated annealing
+* Tabu search
 
 ## Massively parallel leave-one-out kNN scorer. Why?
 
-The solutions found by the metaheuristics implemented in this project to solve the characteristics selection problem are scored with the K nearest neighbours algorithm using the leave-one-out technique; i.e., for every sample `s`, find the K nearest neighbours, pick the most repeated class in those K elements and assign that label to `s`.
+The solutions found by the metaheuristics implemented in this project to solve the characteristics selection problem are scored with the K nearest neighbours algorithm using the leave-one-out technique; i.e., for every sample 
+`s`, it is necessary to find the K nearest neighbours, pick the most repeated class in those K elements and assign that label to `s`.
 
 This scorer, which has a really high computational cost, has been implemented using PyCUDA, obtaining times 100x, 200x or even 300x times faster, depending on the number of samples of the dataset used.
 

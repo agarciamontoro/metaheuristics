@@ -58,8 +58,7 @@ def getCPUScorer(knnClassifier):
 
 # Returns the initial solution
 def genInitSolution(solSize):
-    solution = np.random.randint(2, size=solSize)
-    return np.asarray(solution, dtype=np.bool)
+    return np.random.randint(2, size=solSize, dtype=np.bool)
 
 
 def flip(solution, feature):
