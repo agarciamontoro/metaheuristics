@@ -17,6 +17,7 @@ Install numpy, pycuda and jinja2 and copy the [interface](https://github.com/aga
 ### Detailed instructions
 
 #### Preliminars
+* Make sure that you have the proprietary NVidia drivers and CUDA installed. This depends heavily on your operating system and distribution, but a good way to ensure that everything is ok is to type `nvcc --version` and actually see the version of `nvcc` :)
 * Install NumPy, PyCUDA and jinja2: this step depends on your operating system and distribution; e.g., in Arch Linux you should just type `pacaur -S python-{numpy,pycuda,jinja}`. If you are used to `pip` you can alternatively do the following: `pip install numpy pycuda jinja2` :)
 * Clone this repo to your computer or just download the [interface](https://github.com/agarciamontoro/metaheuristics/blob/master/src/knnGPU/knnLooGPU.py) and the [implementation](https://github.com/agarciamontoro/metaheuristics/blob/master/src/knnGPU/kernel.cu) of the scorer and put them in your project directory.
 
