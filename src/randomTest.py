@@ -26,7 +26,7 @@ if __name__ == "__main__":
                 os.path.join(dataPath, "movement_libras.arff"),
                 os.path.join(dataPath, "arrhythmia.arff")]
 
-    numExperiments = 5000
+    numExperiments = 10
 
     # Errors
     errors = np.zeros(numExperiments, dtype=np.float32)
