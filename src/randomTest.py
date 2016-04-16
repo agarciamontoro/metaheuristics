@@ -26,7 +26,7 @@ if __name__ == "__main__":
                 os.path.join(dataPath, "movement_libras.arff"),
                 os.path.join(dataPath, "arrhythmia.arff")]
 
-    numExperiments = 10
+    numExperiments = 100
 
     # Errors
     errors = np.zeros(numExperiments, dtype=np.float32)
@@ -41,6 +41,9 @@ if __name__ == "__main__":
         # Init GPU score solution
         scorerGPU = knnLooGPU(numSamples, numFeatures, 3).scoreSolution
 
+        timeCPU = 0.
+        timeGPU = 0.
+
         for i in range(numExperiments):
             selectedFeatures = genInitSolution(numFeatures)
 
@@ -50,7 +53,7 @@ if __name__ == "__main__":
                                  data["target"])
             end = time.time()
 
-            timeGPU = end - start
+            timeGPU += end - start
 
             # Select features and measure time with CPU
             start = time.time()
@@ -58,12 +61,12 @@ if __name__ == "__main__":
                                  data["target"])
             end = time.time()
 
-            timeCPU = end - start
+            timeCPU += end - start
 
             errors[i] = scoreGPU - scoreCPU
 
         print("Database:   ", ntpath.basename(dataFileName))
-        print("Time ratio  ", int(np.ceil(timeCPU/timeGPU)))
+        print("Time ratio  ", timeCPU/timeGPU)
         print("Error:      ", errors.mean())
         print()
 
