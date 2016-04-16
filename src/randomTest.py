@@ -39,7 +39,8 @@ if __name__ == "__main__":
         numFeatures = data["features"].shape[1]
 
         # Init GPU score solution
-        scorerGPU = knnLooGPU(numSamples, numFeatures, 3).scoreSolution
+        scorerGPU = knnLooGPU(data["features"],
+                              data["target"], 3).scoreSolution
 
         timeCPU = 0.
         timeGPU = 0.
@@ -47,10 +48,12 @@ if __name__ == "__main__":
         for i in range(numExperiments):
             selectedFeatures = genInitSolution(numFeatures)
 
+            GPUmask = np.array(np.where(selectedFeatures == True)[0],
+                               dtype=np.int32)
+
             # Select features and measure time with GPU
             start = time.time()
-            scoreGPU = scorerGPU(data["features"][:, selectedFeatures],
-                                 data["target"])
+            scoreGPU = scorerGPU(GPUmask)
             end = time.time()
 
             timeGPU += end - start
