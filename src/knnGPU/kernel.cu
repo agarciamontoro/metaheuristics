@@ -10,17 +10,19 @@
  * @return               The euclidean distance between myFeatures and otherFeatures.
  */
 __device__ float computeDistance(float* myFeatures, float* otherFeatures,
-								 int numFeatures){
+								 int* idxMask, int numIdx){
 	float distance = 0;
-
+	float difference;
 	// Compute the squared euclidean distance.
-    for (size_t i = 0; i < numFeatures; i++) {
-        distance += (myFeatures[i] - otherFeatures[i]) *
-					(myFeatures[i] - otherFeatures[i]);
+    for (size_t i = 0; i < numIdx; i++) {
+		int idx = idxMask[i];
+		difference = myFeatures[idx] - otherFeatures[idx];
+	    distance += difference * difference;
+
     }
 
 	// Returns the euclidean distance.
-	return sqrt(distance);
+	return distance;
 }
 
 /**
@@ -96,13 +98,13 @@ __device__ int votingMethod(int* arr, int size) {
  * @param[in]	numSamples  Number of samples in the data.
  */
 __global__ void scoreSolution(void *devSamples, void *devTarget,
-							  void *devResult, int numFeatures,
-							  int numSamples){
+							  void *devResult, void * devIdxMask,
+							  int numFeatures,int numSamples, int numIdx){
     // Pointers to the features, the target and the result: CUDA global memory :(
     float* globalSamples = (float*)devSamples;
     int* globalTarget = (int*)devTarget;
 	int* globalResult = (int*)devResult;
-
+	int* globalIdxMask = (int*)devIdxMask;
     // The sample represented by this thread is the global identifier of the
     // thread
     int sample = blockIdx.x * blockDim.x + threadIdx.x;
@@ -115,12 +117,12 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
 
 	// Index of this thread sample features start in the globalSamples array
     int initOfMyFeatures = sample * numFeatures;
-    float myFeatures[MAX_NUM_FEATURES];
+    //float myFeatures[MAX_NUM_FEATURES];
 
     // Population of this thread sample features
-    for(int i=0; i<numFeatures; i++){
+    /*for(int i=0; i<numFeatures; i++){
             myFeatures[i] = globalSamples[initOfMyFeatures + i];
-    }
+    }*/
 
 	// Aux sample with invalid index and  infinite distance for initializing the
 	// K nearest neighbours array.
@@ -154,9 +156,9 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
 
 		// New sample index and distance to this thread sample
 		newSample.x = i;
-		newSample.y = computeDistance(myFeatures,
+		newSample.y = computeDistance(globalSamples + initOfMyFeatures,
 									  globalSamples + i * numFeatures,
-									  numFeatures);
+									  globalIdxMask, numIdx);
 
 		// Check whether this new sample should be in the K nearest neighbours.
 		updateKNearest(kNearest, newSample);

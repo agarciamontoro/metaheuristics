@@ -17,7 +17,7 @@ class knnLooGPU:
     function for the characteristic selection problem.
     Implemented upon PyCUDA.
     """
-    def __init__(self, numSamples, numFeatures, k):
+    def __init__(self, samples, targets, k):
         """ Constructor of the class.
 
         Arguments:
@@ -43,9 +43,9 @@ class knnLooGPU:
         self.templateCode = templateEnv.get_template("kernel.cu")
 
         # ========================= INITIALIZATION ========================= #
-        self.init(numSamples, numFeatures, k)
+        self.init(samples, targets, k)
 
-    def init(self, numSamples, numFeatures, k):
+    def init(self, samples, targets, k):
         """ Initialize (or reset) the environment of the scorer.
 
         Arguments:
@@ -57,6 +57,8 @@ class knnLooGPU:
         against these new data.
         """
 
+        numSamples = samples.shape[0]
+        numFeatures = samples.shape[1]
         # ==================== KERNEL TEMPLATE RENDERING ==================== #
         # Set the number of samples and features for the code compilation
         self.NUM_SAMPLES = numSamples
@@ -83,10 +85,19 @@ class knnLooGPU:
         # Compile the kernel code using pycuda.compiler
         self.compiledCode = compiler.SourceModule(kernel)
 
+        # CPU binary array. The i-th value is 1 if the predicted label is
+        # equal to the actual class and 0 if different.
+        results = np.zeros(numSamples, dtype=np.int32)
+
+        # Load data into the GPU
+        self.samplesGPU = gpuarray.to_gpu(samples.flatten())
+        self.targetGPU = gpuarray.to_gpu(targets)
+        self.resultsGPU = gpuarray.to_gpu(results)
+
         # Get the kernel function from the compiled module
         self.GPUscoreSolution = self.compiledCode.get_function("scoreSolution")
 
-    def scoreSolution(self, samples, target):
+    def scoreSolution(self, idxMask):
         """ Computes the mean ratio of success using K-NN and leave-one-out
 
         For every sample in the samples numpy array:
@@ -98,6 +109,8 @@ class knnLooGPU:
             target numpy array
 
         Arguments:
+            * mask: 1D numpy array of boolean, where false represent that
+            the feature is not used and true that is used
             * samples: 2D numpy array, where the rows represent the samples
             and the columns the characteristics values.
             * target: 1D numpy array of length equal to the number of rows in
@@ -107,28 +120,26 @@ class knnLooGPU:
         Returns the mean ratio of success using K nearest neighbours as the
         target function and the leave-one-out technique.
         """
-        # CPU binary array. The i-th value is 1 if the predicted label is
-        # equal to the actual class and 0 if different.
-        results = np.zeros(len(target), dtype=np.int32)
 
         # Number of samples and features. Necessary in the kernel code
-        numSamples = samples.shape[0]
-        numFeatures = samples.shape[1]
+        # numSamples = samples.shape[0]
+        # numFeatures = samples.shape[1]
 
         # Transfer host (CPU) samples, target and results array to
         # device (GPU) memory
-        samplesGPU = gpuarray.to_gpu(samples.flatten())
-        targetGPU = gpuarray.to_gpu(target)
-        resultsGPU = gpuarray.to_gpu(results)
+
+        idxMaskGPU = gpuarray.to_gpu(idxMask)
 
         # Call the kernel on the card
         self.GPUscoreSolution(
             # Kernel function arguments
-            samplesGPU,
-            targetGPU,
-            resultsGPU,
-            np.int32(numFeatures),
-            np.int32(numSamples),
+            self.samplesGPU,
+            self.targetGPU,
+            self.resultsGPU,
+            idxMaskGPU,
+            np.int32(self.NUM_FEATURES),
+            np.int32(self.NUM_SAMPLES),
+            np.int32(idxMask.shape[0]),
 
             # CUDA memory configuration
             # Grid definition -> number of blocks x number of blocks.
@@ -139,7 +150,7 @@ class knnLooGPU:
 
         # Copy the results back from the device (GPU) memory to the host
         # (CPU) memory
-        results = resultsGPU.get()
+        results = self.resultsGPU.get()
 
         # Compute the score, counting the number of success (1) and dividing
         # by the number of samples
