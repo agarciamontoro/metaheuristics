@@ -119,16 +119,19 @@ class knnLooGPU:
         # device (GPU) memory
         samplesGPU = gpuarray.to_gpu(samples.flatten())
         targetGPU = gpuarray.to_gpu(target)
-        resultsGPU = gpuarray.to_gpu(results)
+
+        # This is just a scalar, but we need a Buffer interface object,
+        # so a numpy array will be
+        result = np.array([0], dtype=np.int32)
 
         # Call the kernel on the card
         self.GPUscoreSolution(
             # Kernel function arguments
             samplesGPU,
             targetGPU,
-            resultsGPU,
             np.int32(numFeatures),
             np.int32(numSamples),
+            driver.InOut(result),
 
             # CUDA memory configuration
             # Grid definition -> number of blocks x number of blocks.
@@ -137,13 +140,9 @@ class knnLooGPU:
             block=(int(self.NUM_THREADS_PER_BLOCK), 1, 1),
         )
 
-        # Copy the results back from the device (GPU) memory to the host
-        # (CPU) memory
-        results = resultsGPU.get()
-
-        # Compute the score, counting the number of success (1) and dividing
-        # by the number of samples
-        scoreGPU = sum(results)/len(results)
+        # Compute the score, dividing the number of success by the number of
+        # samples
+        scoreGPU = result[0]/len(target)
 
         # Returns the score from 0 to 100
         return 100*scoreGPU

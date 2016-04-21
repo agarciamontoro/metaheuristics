@@ -96,12 +96,11 @@ __device__ int votingMethod(int* arr, int size) {
  * @param[in]	numSamples  Number of samples in the data.
  */
 __global__ void scoreSolution(void *devSamples, void *devTarget,
-							  void *devResult, int numFeatures,
-							  int numSamples){
+							  int numFeatures, int numSamples,
+							  int* result){
     // Pointers to the features, the target and the result: CUDA global memory :(
     float* globalSamples = (float*)devSamples;
     int* globalTarget = (int*)devTarget;
-	int* globalResult = (int*)devResult;
 
     // The sample represented by this thread is the global identifier of the
     // thread
@@ -174,7 +173,9 @@ __global__ void scoreSolution(void *devSamples, void *devTarget,
 	// TODO: Generalize to k != 3
 	int computedClass = votingMethod(classes, K);
 
-	// Check wether the computed class is equal to the stored class in the actual
-	// target array. Set to 1 if success, to 0 if failure.
-	globalResult[sample] = computedClass == globalTarget[sample] ? 1 : 0;
+	// Check wether the computed class is equal to the stored class in the
+	// actual and add one to the result :)
+	if (computedClass == globalTarget[sample]){
+		atomicAdd( result, 1 );
+	}
 }
