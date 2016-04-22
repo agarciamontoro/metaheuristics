@@ -47,11 +47,9 @@ if __name__ == "__main__":
     # Test all data sets
     for dataIdx, dataFileName in enumerate(datasets):
         data = loadDataSet(dataFileName)
-        numSamples = data["features"].shape[0]
-        numFeatures = data["features"].shape[1]
 
-        # Init GPU score solution
-        scorerGPU = knnLooGPU(numSamples, numFeatures, 3)
+        # Define number of features
+        numFeatures = data["features"].shape[1]
 
         # Repeat the experiment numExperiments times
         for exp in range(numExperiments):
@@ -68,6 +66,13 @@ if __name__ == "__main__":
                 featuresTest = data["features"][idxTest]
                 targetTest = data["target"][idxTest]
 
+                # Define number of train and test samples
+                numSamples = len(targetTrain)
+                numSamples = len(targetTest)
+
+                # Init GPU score solution
+                scorerGPU = knnLooGPU(numSamples, numTest, numFeatures, 3)
+
                 # Test all algorithms
                 for algorithm in metaheuristics:
                     algStr = algorithm.__name__
@@ -83,8 +88,8 @@ if __name__ == "__main__":
                                       targetTrain)
 
                     # Get the score with the test data
-                    scoreOut = knnClassifier.score(featuresTest[:, solution],
-                                                   targetTest)
+                    scoreOut = scoreOut(featuresTrain[:, solution], featuresTest[:, solution],
+                                        targetTrain, targetTest)
 
                     red = (len(solution) - solution.sum(0)) / len(solution)
 
