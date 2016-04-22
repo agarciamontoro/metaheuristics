@@ -131,7 +131,7 @@ class knnLooGPU:
         result = np.array([0], dtype=np.int32)
 
         # Call the kernel on the card
-        self.GPUscoreSolution(
+        print(self.GPUscoreSolution(
             # Kernel function arguments
             samplesGPU,
             targetGPU,
@@ -144,7 +144,8 @@ class knnLooGPU:
             grid=(self.NUM_BLOCKS, 1, 1),
             # block definition -> number of threads x number of threads
             block=(int(self.NUM_THREADS_PER_BLOCK), 1, 1),
-        )
+            time_kernel=True
+        ))
 
         # Compute the score, dividing the number of success by the number of
         # samples
