@@ -284,7 +284,7 @@ __device__ int votingMethod(int* arr, int size) {
 
  	 // Check wether the computed class is equal to the stored class in the
  	 // actual and add one to the result :)
- 	 if (computedClass == globalTarget[sample]){
+ 	 if (computedClass == globalTargetTest[test]){
  		 atomicAdd( result, 1 );
  	 }
  }

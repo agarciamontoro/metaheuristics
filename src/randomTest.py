@@ -39,7 +39,7 @@ if __name__ == "__main__":
         numFeatures = data["features"].shape[1]
 
         # Init GPU score solution
-        scorerGPU = knnLooGPU(numSamples, numFeatures, 3).scoreSolution
+        scorerGPU = knnLooGPU(numSamples, 10, numFeatures, 3).scoreSolution
 
         timeCPU = 0.
         timeGPU = 0.
