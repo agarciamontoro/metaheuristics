@@ -113,9 +113,6 @@ class knnLooGPU:
         Returns the mean ratio of success using K nearest neighbours as the
         target function and the leave-one-out technique.
         """
-        # CPU binary array. The i-th value is 1 if the predicted label is
-        # equal to the actual class and 0 if different.
-        results = np.zeros(len(target), dtype=np.int32)
 
         # Number of samples and features. Necessary in the kernel code
         numSamples = samples.shape[0]
