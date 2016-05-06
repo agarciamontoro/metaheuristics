@@ -21,7 +21,7 @@ __device__ float computeDistance(float* myFeatures, float* otherFeatures,
     }
 
 	// Returns the euclidean distance.
-	return sqrt(distance);
+	return distance;
 }
 
 /**

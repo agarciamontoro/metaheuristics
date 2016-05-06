@@ -1,6 +1,5 @@
 from algorithms.utils import genInitSolution, flip, randomly
 
-
 def bestFirst(train, target, scorer):
     # Number of features in training data
     size = train.shape[1]
@@ -10,7 +9,9 @@ def bestFirst(train, target, scorer):
     improvementFound = True
     bestScore = scorer(train[:, selectedFeatures], target)
 
-    while improvementFound:
+    iterations = 0
+
+    while improvementFound or iterations > 15000:
         improvementFound = False
 
         for feature in randomly(range(size)):
@@ -18,6 +19,8 @@ def bestFirst(train, target, scorer):
 
             # Get the current score from the K-NN classifier
             currentScore = scorer(train[:, selectedFeatures], target)
+
+            iterations += 1
 
             # Update best score and solution
             if currentScore > bestScore:

@@ -118,6 +118,10 @@ class knnLooGPU:
         numSamples = samples.shape[0]
         numFeatures = samples.shape[1]
 
+        # If there's no features to be analysed, there was a failure
+        if numFeatures == 0:
+            return 0.0
+
         # Transfer host (CPU) samples, target and results array to
         # device (GPU) memory
         samplesGPU = gpuarray.to_gpu(samples.flatten())
@@ -128,7 +132,7 @@ class knnLooGPU:
         result = np.array([0], dtype=np.int32)
 
         # Call the kernel on the card
-        print(self.GPUscoreSolution(
+        self.GPUscoreSolution(
             # Kernel function arguments
             samplesGPU,
             targetGPU,
@@ -140,9 +144,8 @@ class knnLooGPU:
             # Grid definition -> number of blocks x number of blocks.
             grid=(self.NUM_BLOCKS, 1, 1),
             # block definition -> number of threads x number of threads
-            block=(int(self.NUM_THREADS_PER_BLOCK), 1, 1),
-            time_kernel=True
-        ))
+            block=(int(self.NUM_THREADS_PER_BLOCK), 1, 1)
+        )
 
         # Compute the score, dividing the number of success by the number of
         # samples
@@ -182,6 +185,10 @@ class knnLooGPU:
         numTest = test.shape[0]
         numFeatures = samples.shape[1]
 
+        # If there's no features to be analysed, there was a failure
+        if numFeatures == 0:
+            return 0.0
+
         # Transfer host (CPU) training and test samples, target and results
         # array to device (GPU) memory
         samplesGPU = gpuarray.to_gpu(samples.flatten())
@@ -214,7 +221,7 @@ class knnLooGPU:
 
         # Compute the score, dividing the number of success by the number of
         # samples
-        scoreGPU = result[0]/len(numTest)
+        scoreGPU = result[0]/numTest
 
         # Returns the score from 0 to 100
         return 100*scoreGPU
