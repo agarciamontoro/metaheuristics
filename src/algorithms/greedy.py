@@ -61,13 +61,11 @@ def randomSFS(train, target, scorer):
     while improvementFound:
         # Loop variables
         improvementFound = False
+        worstGain = 100
+        bestGain = -100
 
         # Let's iterate through all not selected features
         notSelectedFeatures = np.where(selectedFeatures == False)[0]
-
-        # Loop variables initialization
-        worstGain = 100
-        bestGain = -100
 
         # For every feature not yet selected
         for feature in notSelectedFeatures:
@@ -94,9 +92,6 @@ def randomSFS(train, target, scorer):
         threshold = bestGain - alpha * (bestGain - worstGain)
         LRC = np.where(classifGains > threshold)[0]
 
-        print(notSelectedFeatures)
-        print(LRC)
-
         # Selection of best feature (randomly selected from LRC)
         bestFeature = np.random.choice(LRC, 1)
 
@@ -105,10 +100,10 @@ def randomSFS(train, target, scorer):
         if(bestGain > 0):
             selectedFeatures[bestFeature] = True
             bestScore = bestScore + bestGain
+            improvementFound = True
 
-            # Do not consider this entry of the vector for the threshold
+            # Do not reconsider this vector entry for the threshold
             # computation
             classifGains[bestFeature] = -9999999999
-            improvementFound = True
 
     return selectedFeatures, bestScore

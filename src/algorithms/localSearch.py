@@ -1,10 +1,13 @@
 from algorithms.utils import genInitSolution, flip, randomly
 
-def bestFirst(train, target, scorer):
+def bestFirst(train, target, scorer, initSol=None):
     # Number of features in training data
     size = train.shape[1]
 
-    selectedFeatures = genInitSolution(size)
+    if initSol is not None:
+        selectedFeatures = initSol
+    else:
+        selectedFeatures = genInitSolution(size)
 
     improvementFound = True
     bestScore = scorer(train[:, selectedFeatures], target)

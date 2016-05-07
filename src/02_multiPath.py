@@ -6,7 +6,7 @@ from algorithms.utils import loadDataSet
 
 from algorithms.knn import knn
 from algorithms.greedy import SFS, randomSFS
-from algorithms.multiPaths import BMB
+from algorithms.multiPaths import BMB, GRASP, ILS
 
 
 from knnGPU.knnLooGPU import knnLooGPU
@@ -24,12 +24,14 @@ if __name__ == "__main__":
     numExperiments = 5
 
     # List of algorithms
-    metaheuristics = [randomSFS]
+    metaheuristics = [ILS]
 
     # List of data sets
     srcPath = os.path.dirname(os.path.realpath(__file__))
     basePath = os.path.join(srcPath, os.pardir)
     dataPath = os.path.join(basePath, "data")
+    resPath = os.path.join(basePath, "results", "02")
+    tmpPath = os.path.join(resPath, "tmp")
 
     datasets = [os.path.join(dataPath, "wdbc.arff"),
                 os.path.join(dataPath, "movement_libras.arff"),
@@ -96,8 +98,7 @@ if __name__ == "__main__":
                     tables[algStr][2*exp+partIdx][init:init+resSize] = results
 
                     # Save temp file
-                    tempFileName = os.path.join(basePath, "results", "02",
-                                                "tmp", algStr + "_temp.csv")
+                    tempFileName = os.path.join(tmpPath, algStr + "_temp.csv")
                     np.savetxt(tempFileName,
                                tables[algStr],
                                delimiter=",",
@@ -117,7 +118,7 @@ if __name__ == "__main__":
         # Append the mean values to the bottom of the table
         tables[algStr] = np.vstack((tables[algStr], meanValues))
 
-        fileName = os.path.join(basePath, "results", "02", algStr)
+        fileName = os.path.join(resPath, algStr + ".csv")
 
         # Save the table :)
         np.savetxt(fileName, tables[algStr], delimiter=",", fmt="%3.4f")
