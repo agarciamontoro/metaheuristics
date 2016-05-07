@@ -6,7 +6,11 @@ import numpy as np
 
 
 def BMB(train, target, scorer):
+    """ Basic multi boot search
 
+    Executes local search over 25 randomly initialized solutions in
+    order to achieve more diversity.
+    """
     bestSolution, bestScore = None, -1
 
     for i in range(25):
@@ -20,6 +24,11 @@ def BMB(train, target, scorer):
 
 
 def GRASP(train, target, scorer):
+    """ Greedy randomized adaptive search procedure
+
+    Executes local search over 25 greedily initialized solutions in
+    order to achieve more diversity.
+    """
     # Define initial solution and score
     bestSolution, bestScore = None, 0
 
@@ -53,6 +62,11 @@ def mutateSolution(initSol, perc=0.1):
 
 
 def ILS(train, target, scorer):
+    """ Iterative local search
+
+    Executes local search over 25 mutated solutions, considering at each
+    iteration the best solution of the previous one.
+    """
     # Number of features in training data
     size = train.shape[1]
 

@@ -5,7 +5,7 @@ from sklearn.cross_validation import StratifiedKFold
 from algorithms.utils import loadDataSet
 
 from algorithms.knn import knn
-from algorithms.greedy import SFS, randomSFS
+from algorithms.greedy import SFS
 from algorithms.multiPaths import BMB, GRASP, ILS
 
 
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     numExperiments = 5
 
     # List of algorithms
-    metaheuristics = [ILS]
+    metaheuristics = [knn, SFS, BMB, GRASP, ILS]
 
     # List of data sets
     srcPath = os.path.dirname(os.path.realpath(__file__))
