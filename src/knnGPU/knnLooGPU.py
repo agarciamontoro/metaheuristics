@@ -58,6 +58,8 @@ class knnLooGPU:
         against these new data.
         """
 
+        self.scorerCalls = 0
+
         # ==================== KERNEL TEMPLATE RENDERING ==================== #
         # Set the number of samples and features for the code compilation
         self.NUM_SAMPLES = numSamples
@@ -147,6 +149,8 @@ class knnLooGPU:
             block=(int(self.NUM_THREADS_PER_BLOCK), 1, 1)
         )
 
+        self.scoreCalls += 1
+
         # Compute the score, dividing the number of success by the number of
         # samples
         scoreGPU = result[0]/len(target)
@@ -225,3 +229,6 @@ class knnLooGPU:
 
         # Returns the score from 0 to 100
         return 100*scoreGPU
+
+    def resetCounter(self):
+        self.scoreCalls = 0
