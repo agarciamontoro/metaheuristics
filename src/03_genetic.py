@@ -6,7 +6,6 @@ from algorithms.utils import loadDataSet
 
 from algorithms.knn import knn
 from algorithms.greedy import SFS
-from algorithms.multiPaths import BMB, GRASP, ILS
 from algorithms.genetic import stationaryGA, generationalGA
 
 from knnGPU.knnLooGPU import knnLooGPU
@@ -24,7 +23,7 @@ if __name__ == "__main__":
     numExperiments = 5
 
     # List of algorithms
-    metaheuristics = [generationalGA]
+    metaheuristics = [knn, SFS, generationalGA, stationaryGA]
 
     # List of data sets
     srcPath = os.path.dirname(os.path.realpath(__file__))

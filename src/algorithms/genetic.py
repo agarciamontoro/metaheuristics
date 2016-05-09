@@ -45,10 +45,10 @@ class Chromosome:
         return [child1, child2]
 
 
-# Stationary
+# General
 class Population:
     def __init__(self, populationSize, chromosomeSize, scorer,
-                 crossoverProb = 1, mutationProb = 0.001):
+                 crossoverProb=1, mutationProb=0.001, numSelected=2):
         self.population = [Chromosome(chromosomeSize, scorer)
                            for _ in range(populationSize)]
 
@@ -56,6 +56,7 @@ class Population:
         self.chromosomeSize = chromosomeSize
         self.mutationProb = mutationProb
         self.crossoverProb = crossoverProb
+        self.numSelected = numSelected
 
         self.generation = 1
 
@@ -68,22 +69,21 @@ class Population:
         return winner
 
     def selection(self):
-        self.selected = [self.binaryTournament() for _ in range(2)]
+        self.selected = [self.binaryTournament()
+                         for _ in range(self.numSelected)]
 
     def generationalSelection(self):
         self.selected = [self.binaryTournament() for _ in range(self.size)]
 
     def recombination(self):
-        mother = self.selected[0]
-        father = self.selected[1]
-
-        self.descendants = mother.crossover(father)
-
-    # TODO: This is the saaaaaaaaaaaaame as above (replace it later)
-    def generationalRecombination(self):
+        # For every pair in selected chromosomes, do the crossover or maintain
+        # the parents, based on the probability crossoverProb. It works both
+        # on the stationary and generational paradigms. The chain.from_iterable
+        # is necessary, as we are building a comprehensive list from pairs of
+        # objects
         self.descendants = list(chain.from_iterable(
                             mother.crossover(father)
-                            if np.random.uniform(0., 1.) > self.crossoverProb
+                            if np.random.uniform(0., 1.) < self.crossoverProb
                             else (mother, father)
                             for mother, father in pairwise(self.selected)))
 
@@ -132,17 +132,62 @@ class Population:
         return self.population[-1]
 
 
-def stationaryGA(train, target, scorer):
+class stationaryPopulation(Population):
+    def __init__(self, chromosomeSize, scorer, populationSize=30,
+                 crossoverProb=1, mutationProb=0.001):
+        super().__init__(populationSize, chromosomeSize, scorer,
+                         crossoverProb, mutationProb, numSelected=2)
+
+    def replacement(self):
+        # Sort in ascending order: first chromosome is the worst one
+        self.population.sort(key=attrgetter('score'))
+        self.descendants.sort(key=attrgetter('score'), reverse=True)
+
+        # Get the best chromosomes
+        if self.descendants[0].score > self.population[0].score:
+            self.population[0] = self.descendants[0]
+
+        if self.descendants[1].score > self.population[1].score:
+            self.population[1] = self.descendants[1]
+
+        self.generation += 1
+
+
+class generationalPopulation(Population):
+    def __init__(self, chromosomeSize, scorer, populationSize=30,
+                 crossoverProb=0.7, mutationProb=0.001):
+        super().__init__(populationSize, chromosomeSize, scorer, crossoverProb,
+                         mutationProb, numSelected=populationSize)
+
+    def replacement(self):
+        # Sort in descending order: first chromosome is the best one
+        self.population.sort(key=attrgetter('score'), reverse=True)
+
+        bestChromosome = self.population[0]
+
+        self.population = self.descendants
+
+        # Elitism
+        if bestChromosome not in self.population:
+            # Sort in ascending order: first chromosome is the worst one
+            self.population.sort(key=attrgetter('score'))
+
+            self.population[0] = bestChromosome
+
+
+def GA(train, target, scorer, stationary=True):
     def genScorer(chromosome):
         return scorer.scoreSolution(train[:, chromosome], target)
 
     # Number of features
     size = train.shape[1]
 
-    # Initialization of the population
-    population = Population(30, size, genScorer)
+    if stationary:
+        population = stationaryPopulation(size, genScorer)
+    else:
+        population = generationalPopulation(size, genScorer)
 
-    # Evolition
+    # Evolution
     while(scorer.scoreCalls < 15000):
         population.selection()
         population.recombination()
@@ -153,45 +198,10 @@ def stationaryGA(train, target, scorer):
 
     return bestChromosome.genes, bestChromosome.score
 
+
 def stationaryGA(train, target, scorer):
-    def genScorer(chromosome):
-        return scorer.scoreSolution(train[:, chromosome], target)
-
-    # Number of features
-    size = train.shape[1]
-
-    # Initialization of the population
-    population = Population(30, size, genScorer)
-
-    # Evolition
-    while(scorer.scoreCalls < 15000):
-        population.selection()
-        population.recombination()
-        population.mutation()
-        population.replacement()
-
-    bestChromosome = population.bestChromosome()
-
-    return bestChromosome.genes, bestChromosome.score
+    return GA(train, target, scorer, stationary=True)
 
 
 def generationalGA(train, target, scorer):
-    def genScorer(chromosome):
-        return scorer.scoreSolution(train[:, chromosome], target)
-
-    # Number of features
-    size = train.shape[1]
-
-    # Initialization of the population
-    population = Population(30, size, genScorer, crossoverProb=0.7)
-
-    # Evolition
-    while(scorer.scoreCalls < 15000):
-        population.generationalSelection()
-        population.generationalRecombination()
-        population.mutation()
-        population.generationalReplacement()
-
-    bestChromosome = population.bestChromosome()
-
-    return bestChromosome.genes, bestChromosome.score
+    return GA(train, target, scorer, stationary=False)
