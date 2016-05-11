@@ -24,7 +24,8 @@ if __name__ == "__main__":
     numExperiments = 5
 
     # List of algorithms
-    metaheuristics = [HUXstationaryGA, HUXgenerationalGA]
+    metaheuristics = [knn, SFS, generationalGA, HUXgenerationalGA,
+                      stationaryGA, HUXstationaryGA]
 
     # List of data sets
     srcPath = os.path.dirname(os.path.realpath(__file__))

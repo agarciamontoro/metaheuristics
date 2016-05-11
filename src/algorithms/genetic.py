@@ -94,9 +94,6 @@ class Population:
         self.selected = [self.binaryTournament()
                          for _ in range(self.numSelected)]
 
-    def generationalSelection(self):
-        self.selected = [self.binaryTournament() for _ in range(self.size)]
-
     def recombination(self):
         # For every pair in selected chromosomes, do the crossover or maintain
         # the parents, based on the probability crossoverProb. It works both
@@ -117,35 +114,6 @@ class Population:
             gene = np.random.randint(self.chromosomeSize)
 
             self.population[chromosome].mutateGene(gene)
-
-    def replacement(self):
-        # Sort in ascending order: first chromosome is the worst one
-        self.population.sort(key=attrgetter('score'))
-        self.descendants.sort(key=attrgetter('score'), reverse=True)
-
-        # Get the best chromosomes
-        if self.descendants[0].score > self.population[0].score:
-            self.population[0] = self.descendants[0]
-
-        if self.descendants[1].score > self.population[1].score:
-            self.population[1] = self.descendants[1]
-
-        self.generation += 1
-
-    def generationalReplacement(self):
-        # Sort in descending order: first chromosome is the best one
-        self.population.sort(key=attrgetter('score'), reverse=True)
-
-        bestChromosome = self.population[0]
-
-        self.population = self.descendants
-
-        # Elitism
-        if bestChromosome not in self.population:
-            # Sort in ascending order: first chromosome is the worst one
-            self.population.sort(key=attrgetter('score'))
-
-            self.population[0] = bestChromosome
 
     def bestChromosome(self):
         # Sort in ascending order: first chromosome is the worst one
@@ -227,6 +195,7 @@ def stationaryGA(train, target, scorer):
 
 def generationalGA(train, target, scorer):
     return GA(train, target, scorer, stationary=False)
+
 
 def HUXstationaryGA(train, target, scorer):
     return GA(train, target, scorer, stationary=True, HUX=True)
