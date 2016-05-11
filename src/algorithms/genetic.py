@@ -6,12 +6,14 @@ from copy import deepcopy
 from itertools import chain
 
 class Chromosome:
-    def __init__(self, chromosomSize, scorer):
+    def __init__(self, chromosomSize, scorer, HUX=False):
         self.size = chromosomSize
         self.genes = genInitSolution(self.size)
+        self.HUX = HUX
 
         self.scorer = scorer
         self.setScore()
+        self.crossover = self.HUXcrossover if HUX else self.TRIcrossover
 
     def setScore(self):
         self.score = self.scorer(self.genes)
@@ -26,7 +28,7 @@ class Chromosome:
         # Update scoring
         self.setScore()
 
-    def crossover(self, partner):
+    def TRIcrossover(self, partner):
         # Generate the crossover points
         pts = np.random.choice(self.size, 2)
 
@@ -44,12 +46,31 @@ class Chromosome:
 
         return [child1, child2]
 
+    def HUXcrossover(self, partner):
+        # Generate the new childs from their parents
+        child1 = deepcopy(self)
+        child2 = deepcopy(partner)
+
+        difFeatures = np.where(child1 != child2)
+
+        for child in [child1, child2]:
+            for f in difFeatures:
+                if(np.random.uniform(0., 1.) > 0.5):
+                    flip(child.genes, f)
+
+        # Update the scores
+        child1.setScore()
+        child2.setScore()
+
+        return [child1, child2]
+
 
 # General
 class Population:
     def __init__(self, populationSize, chromosomeSize, scorer,
-                 crossoverProb=1, mutationProb=0.001, numSelected=2):
-        self.population = [Chromosome(chromosomeSize, scorer)
+                 crossoverProb=1, mutationProb=0.001, numSelected=2,
+                 HUX=False):
+        self.population = [Chromosome(chromosomeSize, scorer, HUX)
                            for _ in range(populationSize)]
 
         self.size = populationSize
@@ -57,6 +78,7 @@ class Population:
         self.mutationProb = mutationProb
         self.crossoverProb = crossoverProb
         self.numSelected = numSelected
+        self.HUX = HUX
 
         self.generation = 1
 
@@ -133,10 +155,10 @@ class Population:
 
 
 class stationaryPopulation(Population):
-    def __init__(self, chromosomeSize, scorer, populationSize=30,
+    def __init__(self, chromosomeSize, scorer, HUX=False, populationSize=30,
                  crossoverProb=1, mutationProb=0.001):
         super().__init__(populationSize, chromosomeSize, scorer,
-                         crossoverProb, mutationProb, numSelected=2)
+                         crossoverProb, mutationProb, 2, HUX)
 
     def replacement(self):
         # Sort in ascending order: first chromosome is the worst one
@@ -154,10 +176,10 @@ class stationaryPopulation(Population):
 
 
 class generationalPopulation(Population):
-    def __init__(self, chromosomeSize, scorer, populationSize=30,
+    def __init__(self, chromosomeSize, scorer, HUX=False, populationSize=30,
                  crossoverProb=0.7, mutationProb=0.001):
         super().__init__(populationSize, chromosomeSize, scorer, crossoverProb,
-                         mutationProb, numSelected=populationSize)
+                         mutationProb, populationSize, HUX)
 
     def replacement(self):
         # Sort in descending order: first chromosome is the best one
@@ -175,7 +197,7 @@ class generationalPopulation(Population):
             self.population[0] = bestChromosome
 
 
-def GA(train, target, scorer, stationary=True):
+def GA(train, target, scorer, stationary=True, HUX=False):
     def genScorer(chromosome):
         return scorer.scoreSolution(train[:, chromosome], target)
 
@@ -183,9 +205,9 @@ def GA(train, target, scorer, stationary=True):
     size = train.shape[1]
 
     if stationary:
-        population = stationaryPopulation(size, genScorer)
+        population = stationaryPopulation(size, genScorer, HUX)
     else:
-        population = generationalPopulation(size, genScorer)
+        population = generationalPopulation(size, genScorer, HUX)
 
     # Evolution
     while(scorer.scoreCalls < 15000):
@@ -205,3 +227,10 @@ def stationaryGA(train, target, scorer):
 
 def generationalGA(train, target, scorer):
     return GA(train, target, scorer, stationary=False)
+
+def HUXstationaryGA(train, target, scorer):
+    return GA(train, target, scorer, stationary=True, HUX=True)
+
+
+def HUXgenerationalGA(train, target, scorer):
+    return GA(train, target, scorer, stationary=False, HUX=True)

@@ -1,0 +1,514 @@
+\documentclass[a4paper, 11pt, titlepage]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{kvoptions-patch}
+\usepackage[title={Práctica 2: Búsquedas con trayectorias múltiples}]{estilo}
+
+\makeatletter
+ \renewcommand{\ALG@name}{Pseudocódigo}
+\makeatother
+
+\pgfplotstableread[col sep=comma]{../results/03/knn.csv}\dataKNN
+\pgfplotstableread[col sep=comma]{../results/03/SFS.csv}\dataSFS
+\pgfplotstableread[col sep=comma]{../results/03/generationalGA.csv}\dataAGG
+\pgfplotstableread[col sep=comma]{../results/03/stationaryGA.csv}\dataAGE
+\pgfplotstableread[col sep=comma]{../results/03/HUXgenerationalGA.csv}\dataAGGHUX
+\pgfplotstableread[col sep=comma]{../results/03/HUXstationaryGA.csv}\dataAGEHUX
+\pgfplotstableread[col sep=comma]{../results/03/medias.csv}\dataMedias
+
+\begin{document}
+
+    \maketitle
+
+    \pagenumbering{roman}
+    \tableofcontents
+    \newpage
+
+    \pagenumbering{arabic}
+
+    \section{Descripción del problema}
+    La selección de características es una técnica muy usada en problemas de aprendizaje automático.
+
+    El aprendizaje automático, visto de una forma muy general, tiene como objetivo clasificar un conjunto de objetos ---modelador por una serie de atributos--- en clases.
+
+    Esta clasificación se aprende desde los datos, pero la selección de los atributos que definen la modelización del objeto puede no ser la más apropiada: en ocasiones hay atributos superfluos o demasiado ruidosos que sería conveniente eliminar. Además, cuantos menos atributos definan un objeto, más rápido y preciso será el aprendizaje. Es aquí entonces donde aparece la pregunta que guia todo este trabajo: ¿cómo identificar los atributos que mejor aprendizaje promueven?
+
+    La respuesta a esta pregunta pasa por la selección de características, cuyo objetivo es reducir la definición de un objeto a una serie de características que faciliten el aprendizaje.
+
+    La idea es entonces la siguiente: dado un conjunto de $m$ objetos definidos por un conjunto $C$ de $n$ características, y considerado un modelo de aprendizaje $f$ que intenta aprender la clasificación de estos objetos, encontrar el subconjunto $C' \subset C$ que maximiza el modelo $f$.
+
+    Así, vemos claramente que el tamaño de caso de nuestro problema es $n$ ---el número de características--- y que el objetivo está bien definido: eliminar aquellas características que o bien empeoren la bondad de $f$ o bien sean innecesarias.
+
+    Con todos estos elementos definidos, podemos pasar a analizar las metaheurísticas consideradas.
+
+    \section{Metaheurísticas}
+
+    \subsection{Introducción}
+
+    Los algoritmos considerados para resolver el problema son los siguientes:
+    \begin{itemize}
+        \item Búsqueda multiarranque básica (BMB).
+        \item \emph{Greedy randomized adaptive search procedure (GRASP)}.
+        \item Búsqueda local reiterada (\emph{ILS}).
+    \end{itemize}
+
+    Además, compararemos estas metaheurísticas con el algoritmo voraz \emph{Sequential forward selection}.
+
+    Estas tres metaheurísticas reúnen las condiciones necesarias para resolver el problema: el espacio de soluciones de nuestro problema puede ser analizado mediante las estructuras de generación de vecinos y los criterios de aceptación que utilizan estos algoritmos. Veamos con un poco más de detalle los aspectos comunes a las metaheurísticas implementadas:
+
+    \subsubsection*{Datos de entrada}
+    Todos los algoritmos considerados reciben un conjunto de entrenamiento cuyos objetos tienen la siguiente estructura:
+    \[
+    (s_1, s_2, \dots, s_n, c)
+    \]
+    donde $(s_1, s_2, \dots, s_n)$ es el conjunto de valores de los atributos que definen el objeto y $c$ la clase a la que pertenece.
+
+    \subsubsection*{Esquema de representación}
+    El espacio de soluciones $S$ de nuestro problema es el conjunto de todos los vectores $s$ de longitud $n$ ---el número de características--- binarios; es decir:
+    \[
+    S = \{s = (s_1, s_2, \dots, s_n) / s_i \in \{0,1\} \;\forall i = 1, 2, \dots, n\}
+    \]
+
+    La posición $i$-ésima de un vector $s \in S$ indicará la inclusión o no de la característica $i$-ésima en el conjunto final $C'$.
+
+    \subsubsection*{Función objetivo}
+    La finalidad de las metaheurísticas será maximizar la función objetivo siguiente:
+    \begin{align*}
+        f \colon &S \to [0,100] \\
+        &s \mapsto f(s) = \textrm{Acierto del 3-NN sobre s}
+    \end{align*}
+
+    $f(s)$ es, por tanto, la tasa de acierto del clasificador 3-NN producido a partir de la solución $s$.
+
+    El clasificador 3-NN es una particularización del clasificador $k$-NN, que mide la distancia de la instancia considerada a todos los demás objetos en el conjunto de datos de entrenamiento y le asigna la clasificación mayoritaria de entre los $k$ vecinos más cercanos; esto es:
+
+    \begin{algorithm}
+        \caption{Clasificador $k$-NN}\label{knn}
+        \begin{algorithmic}[1]
+            \Function{$k$-NN}{instance, trainingData}
+            \State distances $\gets$ euclideanDistance(instance, trainingData)
+            \State neighbours $\gets$ getClosestNeighbours(distances)
+            \State classification $\gets$ mostVotedClassification(neighbours)
+            \State \Return classification
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    Así, dada una solución $s \in S$, la función objetivo es como sigue:
+
+    \begin{algorithm}
+        \caption{Función objetivo}\label{f_objetivo}
+        \begin{algorithmic}[1]
+            \Function{$f$}{s, train, target}
+            \State samples $\gets$ removeZeroColumns(s, train)
+            \State sum $\gets$ 0
+
+            \For{instance $\in$ samples}
+                \State class $\gets$ k-NN(instance, samples)
+                \State sum $\gets$ sum + \begin{cases}
+                        1 &\textrm{\textbf{if} } \textrm{class} = \textrm{actualClass(instance, target)} \\
+                        0 &\textrm{\textbf{if} } \textrm{class} \neq \textrm{actualClass(instance, target)}
+                    \end{cases}
+            \EndFor
+
+            \State \Return sum / (number of samples in train)
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+    donde \emph{removeZeroColumns(s, train)} elimina la columna $i$-ésima de \emph{train} si y sólo si $s_i = 0$ y \emph{actualClass(instance, target)} devuelve la clase real ---no la aprendida--- del objeto \emph{instance}.
+
+
+    \subsubsection*{Entorno de soluciones}
+    Dada una solución $s \in S$, el entorno de soluciones vecinas a $s$ es el conjunto
+    \[
+    E(s) = \{s' \in S / \vert s' - s \vert = (0, \dots, 0, \underbrace{1}_i, 0, \dots, 0), i\in\{1,2, \dots, n\}\}
+    \]
+    es decir, $E(s)$ son las soluciones que difieren de $s$ en una única posición. Es evidente entonces que el conjunto $E(S)$ tiene siempre exactamente cardinal igual a $n$.
+
+    El operador de generación de vecino de la solución $s$ es entonces como sigue:
+    \begin{algorithm}
+        \caption{Operador de generación de vecino}\label{flip}
+        \begin{algorithmic}[1]
+            \Function{flip}{solution, feature}
+            \State $s' \gets solution$
+            \State $s'[feature] \gets (s'[feature] + 1)$ mod 2
+            \State \Return s'
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+
+    % TODO: Hablar de la función score y del leaveoneout y esas mierdas
+
+    \subsubsection*{Criterios de parada}
+    Aunque los criterios de parada dependerán de la metaheurística considerada ---en general se parará cuando no se encuentre mejora en el entorno---, en todos los algoritmos pararemos necesariamente tras llegar a las 15000 evaluaciones con el clasificador 3-NN sobre las soluciones generadas.
+
+    \subsubsection*{Generación de soluciones aleatorias}
+
+    En los algoritmos de búsqueda multiarranque básica y búsqueda local reiterada se genera una serie de soluciones aleatorias sobre las que se aplica búsqueda local de una u otra forma. La generación de estas soluciones aleatorias sigue el siguiente esquema:
+
+    \begin{algorithm}
+        \caption{Generación de soluciones aleatorias}\label{randomSol}
+        \begin{algorithmic}[1]
+            \Function{randomSolution}{size}
+            \For{$i \in 1,2,\dots,size$}
+                \State random $\gets$ uniformRandomNumber([0,1])
+                \State $s_i$ $\gets$ \begin{cases}
+                    0 &$\textrm{\textbf{if} }$ random \leq 0.5 \\
+                    1 &$\textrm{\textbf{if} }$ random  > 0.5
+                \end{cases}
+            \EndFor
+            \State solution $\gets$ $(s_1, s_2, \dots, s_{size})$
+            \State \Return solution
+        \end{algorithmic}
+    \end{algorithm}
+
+
+    \subsubsection*{Búsqueda local}
+    El algoritmo de búsqueda local considerado es el implementado para la primera práctica: la búsqueda local primero el mejor.
+
+    El método de exploración del entorno es el siguiente: dada una solución $s$, escogemos una característica al azar, aplicamos el operador $flip$ para obtener una solución vecina y medimos su bondad con $f(s)$; si es mejor que $s$, nos quedamos con ella como mejor solución y volvemos a empezar; si no, tomamos otra característica al azar ---sin repetir--- y seguimos el proceso.
+
+    Pararemos el algoritmo si: o bien al haber explorado el entorno completo de la solución actual ninguna de las soluciones vecinas es mejor, o bien si se han alcanzado 15000 iteraciones. Estaremos entonces ante un máximo ---probablemente local--- y el algoritmo no podrá seguir mejorando la solución.
+
+    El pseudocódigo de todo el procedimiento es el siguiente, donde hemos puesto un tercer argumento optativo, \emph{initSol}, que por defecto es vacío, y en cuyo caso se genera una solución aleatoria como solución inicial. Si no es vacío, tomamos como solución inicial la \emph{initSol}, de manera que la búsqueda se centrará en el entorno de esta solución.
+
+    \begin{algorithm}
+        \caption{Búsqueda local primero el mejor}\label{primMejor}
+        \begin{algorithmic}
+            \Function{bestFirst}{train, target, initSol = $\o$}
+            \If{initSol = $\o$}
+                \State s $\gets$ genInitSolution()
+            \Else
+                \State s $\gets$ initSol
+            \EndIf
+            \State bestScore $\gets$ $f$(s, train, target)
+            \State improvementFound $\gets$ True
+            \While{improvementFound \textbf{and} iterations < 15000}
+                \State improvementFound $\gets$ False
+                \For{feature $\gets$ genRandomFeature(s)} \Comment{Without replacement}
+                    \State s' $\gets$ genNeighbour(s, feature)
+                    \State score $\gets$ $f$(s', train, target)
+                    \If{score $>$ bestScore}
+                        \State s, bestScore $\gets$ s', score
+                        \State improvementFound $\gets$ True
+                        \State \textbf{break for}
+                    \EndIf
+                \EndFor
+            \EndWhile
+            \State \Return s, bestScore
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsection{Búsqueda multiarranque básica}
+
+    La búsqueda multiarranque básica es el primer algoritmo considerado, cuyo comportamiento es muy sencillo: se trata de generar un número $N$ de soluciones aleatorias y, para cada una de ellas, explotar su entorno de soluciones con el algoritmo de búsqueda local primero el mejor.
+
+    La idea que intenta perseguir este algoritmo es clara: como la búsqueda local ya aporta la suficiente intensificación en zonas locales del espacio de búsqueda, se intenta aumentar la diversidad para explorar zonas diferentes. Esto último se consigue con la generación aleatoria de las $N$ soluciones, que previsiblemente cubren una zona mayor del espacio.
+
+    Durante todo el proceso mantendremos la mejor solución encontrada hasta el momento, de manera que al terminar el algoritmo ---tras buscar localmente desde 25 soluciones aleatorias y con un máximo de 15000 iteraciones en cada búsqueda local--- se devuelve la mejor encontrada.
+
+    Como el procedimiento \emph{bestFirst} genera una solución aleatoria inicial si no se le pasa un tercer argumento, todo el cómputo del algoritmo BMB se encuentra recogido en esa llamada. Sólo tenemos que preocuparnos de repetir el procedimiento $N$ veces, donde $N$ es, en este caso, igual a 25.
+
+    El procedimiento se puede ver en el Pseudocódigo \ref{algBMB}.
+
+    \begin{algorithm}
+        \caption{Búsqueda multiarranque básica}\label{algBMB}
+        \begin{algorithmic}[1]
+            \Function{BMB}{train, target}
+
+            \State bestSolution, bestScore $\gets$ $\o$, -1
+            \For{$i \in \{1,2,\dots,25\}$}
+                \State currentSolution, currentScore $\gets$ bestFirst(train, target)
+                \If{currentScore > bestScore}
+                \State bestSolution, bestScore $\gets$ currentSolution, currentScore
+                \EndIf
+            \EndFor
+
+            \State \Return bestSolution, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsection{\emph{Greedy randomized adaptive search procedure}}
+
+    La estructura del algoritmo GRASP es similar a la de la búsqueda multiarranque básica: tras generar una solución inicial, se ejecuta búsqueda local sobre ella para mejorarla. La diferencia con el algoritmo anterior se encuentra, precisamente, en cómo se genera la solución inicial: si bien en BMB se hacía de forma aleatoria, aquí se añade un paso intermedio: tras generar una solución aleatoria, se ejecuta una variante del algoritmo \emph{SFS} que en cada iteración elige, de entre las características que más ganancia aportan, una de forma aleatoria.
+
+    Antes de entrar en detalles, es conveniente ver el procedimiento general en el Pseudocódigo \ref{algGRASP}.
+
+    \begin{algorithm}
+        \caption{GRASP}\label{algGRASP}
+        \begin{algorithmic}[1]
+            \Function{BMB}{train, target}
+
+            \State bestSolution, bestScore $\gets$ $\o$, -1
+            \For{$i \in \{1,2,\dots,25\}$}
+                \State currentSolution, currentScore $\gets$ randomSFS(train, target)
+                \State currentSolution, currentScore $\gets$ bestFirst(train, target, currentSolution)
+                \If{currentScore > bestScore}
+                \State bestSolution, bestScore $\gets$ currentSolution, currentScore
+                \EndIf
+            \EndFor
+
+            \State \Return bestSolution, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    Como vemos, sólo se ha añadido la generación de la solución inicial antes de la búsqueda local. En la llamada a \emph{randomSFS} se encuentra el núcleo de este algoritmo, así que echémosle un vistazo más de cerca.
+
+    \subsubsection*{Algoritmo voraz probabilístico}
+
+    La generación de la solución inicial en el algoritmo \emph{GRASP} se hace con un algoritmo voraz probabilístico, cuya idea central es la siguiente: en cada iteración se evalúan todas las características aún no seleccionadas, almacenando para cada una de ellas la ganancia ---que puede ser negativa--- que produce con respecto a la solución actual; tras esta evaluación, se genera una lista restringida de candidatos definida a partir de la peor y mejor ganancia registradas; de entre esta lista, se toma una característica al azar y se añade a la solución, terminando así la iteración.
+
+    La generación de la lista restringida de candidatos, LRC, se hace en base al siguiente umbral:
+
+    \[
+        \mu = \max_{i}\{g_i\} - \alpha (\max_{i}\{g_i\} - \min_{i}\{g_i\})
+    \]
+    donde $g_i$ es la ganancia que produce añadir la característica $i$-ésima a la solución actual y, en este caso, se ha tomado $\alpha = 0.3$.
+
+    Podemos ya ver el procedimiento del algoritmo voraz probabilístico en el Pseudocódigo \ref{algRandomSFS}.
+
+    \begin{algorithm}
+        \caption{Algoritmo voraz probabilístico}\label{algRandomSFS}
+        \begin{algorithmic}[1]
+            \Function{randomSFS}{train, target}
+            \State s $\gets$ genZeroSolution()
+            \State bestScore $\gets$ 0
+            \While{there was improvement with some feature}
+                \State $g$ $\gets$ $(0,0,\dots,0)$ \Comment{Size = number of not selected features}
+                \For{every feature f in not selected features}
+                    \State s $\gets$ addFeature(s,f)
+                    \State currentScore $\gets$ $f$(s, train, target)
+                    \State gain $\gets$ currentScore - bestScore
+                    \State $g_f$ $\gets$ gain
+                    \State s $\gets$ removeFeature(s,f)
+                \EndFor
+                \State $\mu \gets \max_{i}\{g_i\} - \alpha (\max_{i}\{g_i\} - \min_{i}\{g_i\})$
+                \State LRC $\gets \{f \in \textrm{not selected features} / g_f > \mu\}$
+                \State f $\gets$ random choice from LRC
+                \If{$g_f > 0$}
+                    \State s $\gets$ addFeature(s,f)
+                    \State bestScore $\gets$ bestScore + bestGain
+                \EndIf
+            \EndWhile
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsection{Búsqueda local reiterada}
+
+    El algoritmo de búsqueda local reiterada, o ILS por sus siglas en inglés, busca también introducir algo de diversidad en las soluciones exploradas. Para ello, parte de una solución inicial aleatoria que mejora con búsqueda local. A partir de ahí se sigue un procedimiento iterativo repetido $N$ veces ---en nuestro caso, tomaremos $N = 24$, ya que queremos llamar 25 veces a la búsqueda local---:
+    \begin{itemize}
+        \item Se muta la solución previa.
+        \item Se realiza búsqueda local con esa mutación como solución inicial.
+        \item Se actualiza la mejor solución.
+    \end{itemize}
+
+    Podemos ver este procedimiento con más detalle en el Pseudocódigo \ref{algILS}.
+
+    \begin{algorithm}
+        \caption{Búsqueda local reiterada}\label{algILS}
+        \begin{algorithmic}[1]
+            \Function{ILS}{train, target}
+            \State bestSolution, bestScore $\gets$ bestFirst(trian, target)
+            \State prevSolution, prevScore $\gets$ bestSolution, bestScore
+            \For{$i \in \{1,2,\dots,24\}$}
+                \State mutation $\gets$ mutateSolution(prevSolution)
+                \State currentSolution, currentScore $\gets$ bestFirst(train, target, currentSolution)
+                \If{currentScore > prevScore}
+                \State prevSolution, prevScore $\gets$ currentSolution, currentScore
+                \EndIf
+                \If{prevScore > bestScore}
+                \State bestSolution, bestScore $\gets$ prevSolution, prevScore
+                \EndIf
+            \EndFor
+
+            \State \Return bestSolution, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsubsection*{Mutación}
+
+    La mutación de las soluciones llevada a cabo en el algoritmo ILS es simple: basta tomar un 10\% de características de forma aleatoria y cambiar su estado: si están a 1 ponerlas a 0 y viceversa; esto es, aplicar el operador \emph{flip} para cada una de ellas.
+
+    Este sencillo procedimiento puede verse en el Pseudocódigo \ref{algMutation}.
+
+    \begin{algorithm}
+        \caption{Mutación para la ILS}\label{algMutation}
+        \begin{algorithmic}[1]
+            \Function{mutateSolution}{solution, $p$ = 0.1}
+            \State $n$ $\gets$ size of solution
+            \State indices $\gets$ Take $\ceil{pn}$ random indices in $\{1,\dots,n\}$
+            \For{$i \in \textrm{indices}$}
+                \State flip(solution, $i$)
+            \EndFor
+
+            \State \Return solution
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+
+    \subsection{Algoritmo de comparación}
+
+    Para la comparación de los algoritmos implementados consideraremos el algoritmo voraz \emph{Sequential forward selection}, que se puede ver en el Pseudocódigo \ref{algSFS}.
+
+    \begin{algorithm}
+        \caption{Algoritmo de comparación}\label{algSFS}
+        \begin{algorithmic}[1]
+            \Function{sequentialForwardSelection}{train, target}
+            \State s $\gets$ genZeroSolution()
+            \State bestScore $\gets$ 0
+            \While{there was improvement with some feature}
+                \For{every feature f in not selected features}
+                    \State s $\gets$ addFeature(s,f)
+                    \State currentScore $\gets$ score(s, train, target)
+                    \If{currentScore $>$ bestScore}
+                    \State bestScore $\gets$ currentScore
+                    \State bestFeature $\gets$ f
+                    \EndIf
+                    \State s $\gets$ removeFeature(s,f)
+                \EndFor
+            \If{there was a best feature f}
+            \State s $\gets$ addFeature(s,f)
+            \EndIf
+            \EndWhile
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    La idea es la siguiente: en cada iteración escogemos la característica, de entre las aún no seleccionadas, que mejor valor de la función objetivo produce, si y sólo si este valor es mejor que el actual.
+
+    \section{Desarrollo de la práctica}
+
+    La práctica se ha desarrollado por completo en Python, definiendo cada algoritmo en una función diferente con cabeceras iguales ---mismo número y tipo de parámetros--- para poder automatizar el proceso de recogida de datos.
+
+    \subsection{\emph{Framework} de aprendizaje automático}
+    Se ha usado, además, el módulo \emph{Scikit-learn}, del que se ha usado la siguiente funcionalidad:
+    \begin{itemize}
+        \item Particionamiento de los datos. \emph{Scikit-learn} aporta una función para hacer un particionado aleatorio de los datos en una parte de aprendizaje y otra de test. Esto se ha usado para implementar la técnica $5\times2$ \emph{cross-validation}.
+    \end{itemize}
+
+    \subsection{Paralelización en GPU de la función objetivo}
+
+    Aunque en la práctica anterior se usó también \emph{Scikit-learn} para medir la función objetivo, la lentitud de este proceso me llevó a buscar otras alternativas: después de intentar usar el mismo módulo con la opción de paralelización CPU y conseguir prácticamente los mismos resultados ---para notar mejoría, dicen los desarrolladores, haría falta trabajar con bases de datos con varios miles de muestras---, decidí buscar una solución propia.
+
+    Como gracias a mi Trabajo fin de grado he aprendido a hacer computación general paralelizada en GPU, decidí usar la librería CUDA ---y en concreto su interfaz para Python, PyCUDA--- para implementar la función objetivo de una forma eficiente. La mejoría en tiempo conseguida es muy notable ---es del orden de 20 a 100 veces más rápido\footnote{Los tiempos son muy dependientes del número de muestras de la base de datos y del número de características. Para tener una idea de la mejora, se pueden comparar los tiempos de las tablas 3-NN y SFS de esta y la anterior práctica.}--- y, tras muchas pruebas para comprobar que el cálculo de la función era correcto, sustituí el $k$-NN de \emph{Scikit-learn} con el implementado en CUDA.
+
+    Todo este trabajo, necesario para el correcto funcionamiento de la práctica, se encuentra en los ficheros bajo el directorio \emph{src/knnGPU}, que contienen la implementación en C del $k$-NN y la interfaz para poder usar el código desde Python.
+
+    Además, como vi que este código podía beneficiar a mis compañeros, decidí publicarlo de forma abierta en un \fnurl{repositorio de Github}{https://github.com/agarciamontoro/metaheuristics}, bien documentado y con una guía de uso.
+
+    Gracias a esto, algunos amigos me ayudaron a mejorar el código: yo había implementado sólo la función objetivo sobre los datos de training, y Jacinto Carrasco Castillo la modificó para poder hacer la medición también con los datos de test. Además, Luís Suárez Lloréns me ayudó a probar cambios que creíamos que iban a  mejorar aún más la eficiencia ---aunque tras mucho trabajo vimos que la implementación inicial era la más rápida---. Por último, Antonio Álvarez Caballero, Anabel Gómez Ríos y Gustavo Rivas Gervilla me ayudaron a testear el código, probándolo con sus algoritmos y los datos que tenían de anteriores prácticas.
+
+    \subsection{Manual de usuario}
+    Para la ejecución de la práctica es necesario tener instalado Python 3, el módulo \emph{Scikit-learn}, \emph{PyCUDA} y \emph{jinja2} ---estos dos últimos módulos son necesarios para la implementación del código paralelizado---, así como disponer de una tarjeta gráfica compatible con CUDA.
+
+    Todo se encuentra automatizado en el fichero \emph{src/02\_multiPath.py}, así que sólo es necesario ejecutar la siguiente orden desde el directorio raíz de la práctica: \emph{python src/02\_multiPath.py}
+
+    Así se ejecutarán todos los algoritmos con todas las bases de datos usando la ténica del  $5\times2$ \emph{cross-validation}. Las tablas generadas se guardarán en el directorio \emph{results/02}.
+
+    La semilla utilizada se inicializa al principio de la ejecución del programa con las líneas \emph{np.random.seed(19921201)} y \emph{random.seed(19921201)}.
+
+
+    \section{Análisis de resultados}
+
+    En esta sección vamos a presentar los datos recogidos de la ejecución de todos los algoritmos con las tres bases de datos consideradas: \emph{WDBC}, \emph{Movement Libras} y \emph{Arrhytmia}. Las bases de datos se han considerado completas en todos los casos, tal y como se nos entregaron ---arreglando alguna columna defectuosa y homogeneizando el nombre de la columna de clasificación para poder automatizar el proceso---.
+
+    Para el análisis de cada algoritmo con cada base de datos se han generado cinco particiones aleatorias de los datos y se ha ejecutado el algoritmo considerando cada partición como datos de entrenamiento y test, con la técnica \emph{$5\times2$ cross-validation}.
+
+    En cada una de estas ejecuciones se han medido los siguientes datos:
+    \begin{itemize}
+        \item Tasa de clasificación en la partición de entrenamiento ---en \%---.
+        \item Tasa de clasificación en la partición de test ---en \%---.
+        \item Tasa de reducción de las características ---en \%---.
+        \item Tiempo de ejecución ---en segundos---.
+    \end{itemize}
+
+    Veamos ya los datos y analicemos los resultados obtenidos:
+
+    \subsection{Clasificador $k$-NN}
+    \begin{table}[!htb]
+        \maketable{\dataKNN}
+        \caption{Datos del clasificador $k$-NN}
+        \label{knn}
+    \end{table}
+
+    En la tabla \ref{knn} se pueden ver los datos obtenidos del clasificador $k$-NN. La selección de características en este algoritmo es nula, ya que es la propia función objetivo considerando la totalidad de las características. Aún así, se ha añadido aquí para conocer la tasa de clasificación en los conjuntos de entrenamiento y de test considerando como solución la trivial: esto es, todas las características.
+
+    Como vemos, aunque en la primera base de datos las tasas de clasificación son buenas, en las otras dos son muy mejorables, lo que nos da una idea de la necesidad de la reducción de características.
+
+    \subsection{Algoritmo de comparación}
+    \begin{table}[!htb]
+        \maketable{\dataSFS}
+        \caption{Datos del algoritmo \emph{Sequential forward selection}}
+        \label{sfs}
+    \end{table}
+
+    En la tabla \ref{sfs} vemos los resultados del algoritmo de comparación, el \emph{Sequential forward selection}. Este algoritmo voraz tiene una alta tasa de reducción de características, pero la tasa de clasificación no mejora la del clasificador con la solución trivial.
+
+    Esto se debe a que consideramos cada característica de una forma secuencial, y una vez seleccionamos una, es imposible descartarla. Aún así, este algoritmo podría ser interesante si lo que buscamos es una reducción drástica del número de características ---como vemos, sobre el 80\%--- sin perder mucha información ---las tasas de clasificación son más o menos iguales a las del clasificador con la solución trivial---.
+
+    \subsection{Algoritmo genético generacional}
+    \begin{table}[!htb]
+        \maketable{\dataAGG}
+        \caption{Datos del algoritmo genético generacional}
+        \label{tablaAGG}
+    \end{table}
+
+    \begin{table}[!htb]
+        \maketable{\dataAGGHUX}
+        \caption{Datos del algoritmo genético generacional con cruce HUX}
+        \label{tablaAGGHUX}
+    \end{table}
+
+    En la tabla \ref{tablaGRASP} se encuentran los datos referentes a la ejecución del algoritmo GRASP sobre todas las bases de datos.
+
+    Vemos cómo este algoritmo consigue unas tasas de reducción bastante altas y, a la vez, unas clasificaciones en la función objetivo mejores que los algoritmos anteriores.
+
+    Esto se debe a que este algoritmo reúne las bondades del algoritmo voraz ---alta reducción de características--- y de la búsqueda local ---mejores clasificaciones en la función objetivo---, consiguiendo así ya unos resultados más aceptables.
+
+    Además, este algoritmo es más rápido que BMB, así que su comportamiento ---tanto en resultados como en eficiencia--- es el más deseable de entre los vistos hasta ahora.
+
+
+    \subsection{Algoritmo genético estacionario}
+    \begin{table}[!htb]
+        \maketable{\dataAGE}
+        \caption{Datos del algoritmo genético estacionario}
+        \label{tablaAGE}
+    \end{table}
+
+    \begin{table}[!htb]
+        \maketable{\dataAGEHUX}
+        \caption{Datos del algoritmo genético estacionario con cruce HUX}
+        \label{tablaAGEHUX}
+    \end{table}
+
+    En la tabla \ref{tablaILS} vemos los datos de la última metaheurística considerada: la búsqueda local reiterada.
+
+    Los resultados de este algoritmo deberían ser parecidos a los de la búsqueda multiarranque básica, ya que la idea detrás de su funcionamiento es parecida. A la vista de los resultados, es evidente que así es.
+
+    En este caso, sin embargo, se intenta añadir diversidad con la mutación de las soluciones. Esta diversidad es bastante positiva en lo referente a los tiempos: ILS tarda menos, en promedio, que BMB en encontrar las soluciones. Esto puede deberse a que las soluciones iniciales están más cerca de los óptimos locales, y la búsqueda local necesita de menos iteraciones para alcanzarla. ¿Por qué pasa esto? Al estar en zonas buenas del espacio de búsqueda, es probable que la mutación de la mejor solución encontrada en la iteración anterior se mueva a zonas mejores, haciendo que la búsqueda local converja más rápido.
+
+    Esta característica es muy positiva, ya que conseguimos resultados muy similares al BMB con una mejora en la eficiencia.
+
+    \subsection{Datos generales}
+    \begin{table}[!htb]
+        \maketablemean{\dataMedias}
+        \caption{Datos generales}
+        \label{medias}
+    \end{table}
+
+    En la tabla \ref{medias} vemos un resumen de todos los datos obtenidos tras las ejecuciones de las metaheurísticas con las bases de datos.
+
+    Vemos ahora claro que el mejor algoritmo en lo referente a la reducción de características es, de lejos, el GRASP. Esta victoria es debida a su comportamiento voraz en la generación de soluciones iniciales.
+
+    Con respecto a la tasa de clasificación, los resultados son bastante variables con respecto a las bases de datos, y tomar una decisión sobre la bondad de uno u otro sería aventurarse demasiado: esta decisión debería ser tomada teniendo en cuenta la base de datos particular con la que se quiera trabajar. Aunque la tasa de clasificación dentro de la muestra de entrenamiento es claramente mejor en GRASP, parece que estamos cayendo en la trampa del sobreajuste: al mirar la tasa en la muestra de test, GRASP pierde en comparación con los otros dos algoritmos ---excepto en Arrythmia, donde es el ganador absoluto en todos los aspectos---.
+
+    Por tanto, si tuviera que escoger uno y solo uno de los algoritmos considerados, elegiría GRASP: su tasa de reducción es la mejor de los tres y las tasas de clasificación son bastante aceptables. Esta decisión vendría supeditada en casos reales, sin embargo, a un estudio pormenorizado del problema particular con el que estemos trabajando.
+
+\end{document}
