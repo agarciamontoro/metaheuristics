@@ -58,7 +58,7 @@ class knnLooGPU:
         against these new data.
         """
 
-        self.scorerCalls = 0
+        self.scoreCalls = 0
 
         # ==================== KERNEL TEMPLATE RENDERING ==================== #
         # Set the number of samples and features for the code compilation

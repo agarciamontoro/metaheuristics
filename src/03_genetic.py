@@ -4,8 +4,8 @@ from sklearn.cross_validation import StratifiedKFold
 
 from algorithms.utils import loadDataSet
 
-from algorithms.knn import knn
-from algorithms.greedy import SFS
+from algorithms.knn_03 import knn
+from algorithms.greedy_03 import SFS
 from algorithms.genetic import stationaryGA, generationalGA
 
 from knnGPU.knnLooGPU import knnLooGPU

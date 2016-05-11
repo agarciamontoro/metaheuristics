@@ -8,7 +8,6 @@ from algorithms.knn import knn
 from algorithms.greedy import SFS
 from algorithms.multiPaths import BMB, GRASP, ILS
 
-
 from knnGPU.knnLooGPU import knnLooGPU
 
 import random
@@ -75,6 +74,8 @@ if __name__ == "__main__":
                 for algorithm in metaheuristics:
                     algStr = algorithm.__name__
 
+                    scorer.resetCounter()
+                    
                     # Select features and measure time
                     start = time.time()
                     solution, scoreIn = algorithm(featuresTrain, targetTrain,
