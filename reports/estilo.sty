@@ -61,6 +61,9 @@
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
 
+% \usepackage{algorithm}% http://ctan.org/pkg/algorithms
+% \usepackage{algcompatible}% http://ctan.org/pkg/algorithmicx
+
 %Tipografía escalable
 \usepackage{lmodern}
 %Legibilidad
@@ -185,3 +188,5 @@
 }
 
 \newcommand{\getElement}[3]{\pgfplotstablegetelem{#2}{#3}\of{#1} \pgfplotsretval}
+
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
