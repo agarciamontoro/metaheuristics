@@ -6,7 +6,7 @@ from algorithms.utils import loadDataSet
 
 from algorithms.knn_03 import knn
 from algorithms.greedy_03 import SFS
-from algorithms.genetic import AM1010, AM1001, AM1001M
+from algorithms.memetic import AM1010, AM1001, AM1001M
 
 from knnGPU.knnLooGPU import knnLooGPU
 

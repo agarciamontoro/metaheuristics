@@ -1,4 +1,4 @@
-from genetic import generationalPopulation
+from algorithms.genetic import generationalPopulation
 
 
 def AM(train, target, scorer, memeticModel):

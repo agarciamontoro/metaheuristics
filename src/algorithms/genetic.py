@@ -179,7 +179,8 @@ class Population:
 
 class stationaryPopulation(Population):
     def __init__(self, chromosomeSize, scorer, HUX=False, populationSize=30,
-                 crossoverProb=1, mutationProb=0.001):
+                 crossoverProb=1, mutationProb=0.001, hybridModel="1010",
+                 hybridConstant=0.1):
         super().__init__(populationSize, chromosomeSize, scorer,
                          crossoverProb, mutationProb, 2, HUX)
 
@@ -200,7 +201,8 @@ class stationaryPopulation(Population):
 
 class generationalPopulation(Population):
     def __init__(self, chromosomeSize, scorer, HUX=False, populationSize=30,
-                 crossoverProb=0.7, mutationProb=0.001):
+                 crossoverProb=0.7, mutationProb=0.001, hybridModel="1010",
+                 hybridConstant=0.1):
         super().__init__(populationSize, chromosomeSize, scorer, crossoverProb,
                          mutationProb, populationSize, HUX)
 
