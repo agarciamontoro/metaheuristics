@@ -160,21 +160,22 @@ class Population:
                 chromosome.localImprovement()
 
     def randomLocalImprovement(self):
-        numChanges = int(self.hybridConstant * self.size)
-        chromosomesToChange = np.random.randint(0, self.size, numChanges)
+        if self.generation % 10 == 0:
+            numChanges = int(self.hybridConstant * self.size)
+            chromosomesToChange = np.random.randint(0, self.size, numChanges)
 
-        for chromosomeIdx in chromosomesToChange:
-            self.population[chromosomeIdx].localImprovement()
-        pass
+            for chromosomeIdx in chromosomesToChange:
+                self.population[chromosomeIdx].localImprovement()
 
     def elitistLocalImprovement(self):
-        numChanges = int(self.hybridConstant * self.size)
+        if self.generation % 10 == 0:
+            numChanges = int(self.hybridConstant * self.size)
 
-        # Sort in descending order: first chromosome is the best one
-        self.population.sort(key=attrgetter('score'), reverse=True)
+            # Sort in descending order: first chromosome is the best one
+            self.population.sort(key=attrgetter('score'), reverse=True)
 
-        for chromosomeIdx in range(numChanges):
-            self.population[chromosomeIdx].localImprovement()
+            for chromosomeIdx in range(numChanges):
+                self.population[chromosomeIdx].localImprovement()
 
 
 class stationaryPopulation(Population):

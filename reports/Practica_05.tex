@@ -1,0 +1,541 @@
+\documentclass[a4paper, 11pt, titlepage]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{kvoptions-patch}
+\usepackage[title={Práctica 5: Algoritmos meméticos}]{estilo}
+
+\makeatletter
+ \renewcommand{\ALG@name}{Pseudocódigo}
+\makeatother
+
+\pgfplotstableread[col sep=comma]{../results/03/knn.csv}\dataKNN
+\pgfplotstableread[col sep=comma]{../results/05/SFS.csv}\dataSFS
+\pgfplotstableread[col sep=comma]{../results/05/AM1010.csv}\dataAMTT
+\pgfplotstableread[col sep=comma]{../results/05/AM1001.csv}\dataAMTZ
+\pgfplotstableread[col sep=comma]{../results/05/AM1001M.csv}\dataAMTZM
+\pgfplotstableread[col sep=comma]{../results/05/medias.csv}\dataMedias
+
+\begin{document}
+
+    \maketitle
+
+    \pagenumbering{roman}
+    \tableofcontents
+    \newpage
+
+    \pagenumbering{arabic}
+
+    \section{Descripción del problema}
+    La selección de características es una técnica muy usada en problemas de aprendizaje automático.
+
+    El aprendizaje automático, visto de una forma muy general, tiene como objetivo clasificar un conjunto de objetos ---modelado por una serie de atributos--- en clases.
+
+    Esta clasificación se aprende desde los datos, pero la selección de los atributos que definen la modelización del objeto puede no ser la más apropiada: en ocasiones hay atributos superfluos o demasiado ruidosos que sería conveniente eliminar. Además, cuantos menos atributos definan un objeto, más rápido y preciso será el aprendizaje. Es aquí entonces donde aparece la pregunta que guía todo este trabajo: ¿cómo identificar los atributos que mejor aprendizaje promueven?
+
+    La respuesta a esta pregunta pasa por la selección de características, cuyo objetivo es reducir la definición de un objeto a una serie de características que faciliten el aprendizaje.
+
+    La idea es entonces la siguiente: dado un conjunto de $m$ objetos definidos por un conjunto $C$ de $n$ características, y considerado un modelo de aprendizaje $f$ que intenta aprender la clasificación de estos objetos, encontrar el subconjunto $C' \subset C$ que maximiza el modelo $f$.
+
+    Así, vemos claramente que el tamaño de caso de nuestro problema es $n$ ---el número de características--- y que el objetivo está bien definido: eliminar aquellas características que o bien empeoren la bondad de $f$ o bien sean innecesarias.
+
+    Con todos estos elementos definidos, podemos pasar a analizar las metaheurísticas consideradas.
+
+    \section{Metaheurísticas}
+
+    \subsection{Introducción}
+
+    Los algoritmos considerados para resolver el problema son todos algoritmos meméticos, que hibridan un algoritmo genético generacional con la búsqueda local de las tres formas siguientes:
+    \begin{itemize}
+        \item Generalizado (AM1010): Cada 10 generaciones, se ejecuta una iteración del algoritmo de búsqueda local primero el mejor sobre todos los cromosomas que forman la población.
+        \item Aleatorio (AM1001): Cada 10 generaciones, se ejecuta una iteración del algoritmo de búsqueda local primero el mejor sobre un 10\% de los cromosomas elegido de forma aleatoria.
+        \item Elitista (AM1001): Cada 10 generaciones, se ejecuta una iteración del algoritmo de búsqueda local primero el mejor sobre el mejor 10\% de los cromosomas.
+    \end{itemize}
+
+    Además, compararemos estas metaheurísticas con el algoritmo voraz \emph{Sequential forward selection}.
+
+    Estas tres metaheurísticas reúnen las condiciones necesarias para resolver el problema: el espacio de soluciones de nuestro problema puede ser analizado mediante las estructuras de generación de vecinos y los criterios de aceptación que utilizan estos algoritmos. Veamos con un poco más de detalle los aspectos comunes a las metaheurísticas implementadas:
+
+    \subsubsection*{Datos de entrada}
+    Todos los algoritmos considerados reciben un conjunto de entrenamiento cuyos objetos tienen la siguiente estructura:
+    \[
+    (s_1, s_2, \dots, s_n, c)
+    \]
+    donde $(s_1, s_2, \dots, s_n)$ es el conjunto de valores de los atributos que definen el objeto y $c$ la clase a la que pertenece.
+
+    \subsubsection*{Esquema de representación}
+    El espacio de soluciones $S$ de nuestro problema es el conjunto de todos los vectores $s$ de longitud $n$ ---el número de características--- binarios; es decir:
+    \[
+    S = \{s = (s_1, s_2, \dots, s_n) / s_i \in \{0,1\} \;\forall i = 1, 2, \dots, n\}
+    \]
+
+    La posición $i$-ésima de un vector $s \in S$ indicará la inclusión o no de la característica $i$-ésima en el conjunto final $C'$.
+
+    \subsubsection*{Función objetivo}
+    La finalidad de las metaheurísticas será maximizar la función objetivo siguiente:
+    \begin{align*}
+        f \colon &S \to [0,100] \\
+        &s \mapsto f(s) = \textrm{Acierto del 3-NN sobre s}
+    \end{align*}
+
+    $f(s)$ es, por tanto, la tasa de acierto del clasificador 3-NN producido a partir de la solución $s$.
+
+    El clasificador 3-NN es una particularización del clasificador $k$-NN, que mide la distancia de la instancia considerada a todos los demás objetos en el conjunto de datos de entrenamiento y le asigna la clasificación mayoritaria de entre los $k$ vecinos más cercanos; esto es:
+
+    \begin{algorithm}
+        \caption{Clasificador $k$-NN}\label{knn}
+        \begin{algorithmic}[1]
+            \Function{$k$-NN}{instance, trainingData}
+            \State distances $\gets$ euclideanDistance(instance, trainingData)
+            \State neighbours $\gets$ getClosestNeighbours(distances)
+            \State classification $\gets$ mostVotedClassification(neighbours)
+            \State \Return classification
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    Así, dada una solución $s \in S$, la función objetivo es como sigue:
+
+    \begin{algorithm}
+        \caption{Función objetivo}\label{f_objetivo}
+        \begin{algorithmic}[1]
+            \Function{$f$}{s, train, target}
+            \State samples $\gets$ removeZeroColumns(s, train)
+            \State sum $\gets$ 0
+
+            \For{instance $\in$ samples}
+                \State class $\gets$ k-NN(instance, samples)
+                \State sum $\gets$ sum + \begin{cases}
+                        1 &\textrm{\textbf{if} } \textrm{class} = \textrm{actualClass(instance, target)} \\
+                        0 &\textrm{\textbf{if} } \textrm{class} \neq \textrm{actualClass(instance, target)}
+                    \end{cases}
+            \EndFor
+
+            \State \Return sum / (number of samples in train)
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+    donde \emph{removeZeroColumns(s, train)} elimina la columna $i$-ésima de \emph{train} si y sólo si $s_i = 0$ y \emph{actualClass(instance, target)} devuelve la clase real ---no la aprendida--- del objeto \emph{instance}.
+
+
+    \subsubsection*{Entorno de soluciones}
+    Dada una solución $s \in S$, el entorno de soluciones vecinas a $s$ es el conjunto
+    \[
+    E(s) = \{s' \in S / \vert s' - s \vert = (0, \dots, 0, \underbrace{1}_i, 0, \dots, 0), i\in\{1,2, \dots, n\}\}
+    \]
+    es decir, $E(s)$ son las soluciones que difieren de $s$ en una única posición. Es evidente entonces que el conjunto $E(S)$ tiene siempre exactamente cardinal igual a $n$.
+
+    El operador de generación de vecino de la solución $s$ es entonces como sigue:
+    \begin{algorithm}
+        \caption{Operador de generación de vecino}\label{flip}
+        \begin{algorithmic}[1]
+            \Function{flip}{solution, feature}
+            \State $s' \gets solution$
+            \State $s'[feature] \gets (s'[feature] + 1)$ mod 2
+            \State \Return s'
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+
+    % TODO: Hablar de la función score y del leaveoneout y esas mierdas
+
+    \subsubsection*{Criterios de parada}
+    En todos los algoritmos pararemos tras ejecutar 15000 evaluaciones con el clasificador 3-NN sobre las soluciones generadas.
+
+    \subsubsection*{Búsqueda local primero el mejor}
+    El algoritmo de búsqueda local usado para la hibridación es el algoritmo primero el mejor, visto en la primera práctica. La única diferencia con aquel es que en este caso se ejecuta una única iteración del mismo, haya habido mejora o no.
+
+    El pseudocódigo de todo el procedimiento es el siguiente:
+
+    \begin{algorithm}
+        \caption{Búsqueda local primero el mejor}\label{primMejor}
+        \begin{algorithmic}[1]
+            \Function{bestFirst}{chromosome}
+            \State s $\gets$ chromosome
+            \State bestScore $\gets$ score(s)
+            \For{f $\gets$ genRandomFeature(s)} \Comment{Without replacement}
+            \State s' $\gets$ flip(s,f)
+            \State score $\gets$ score(s')
+            \If{score $>$ bestScore}
+            \State bestScore $\gets$ score
+            \State s $\gets$ s'
+            \State \textbf{break}
+            \EndIf
+            \EndFor
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsubsection*{Mecanismo de selección}
+
+    En el algoritmo genético se considera un mecanismo de selección basado en el torneo binario; es decir, se eligen dos individuos de la población al azar y se selecciona el mejor. En el Pseudocódigo \ref{torneoBinario} se puede ver este procedimiento:
+
+    \begin{algorithm}
+        \caption{Torneo binario}\label{torneoBinario}
+        \begin{algorithmic}[1]
+            \Function{binaryTournament}{population}
+            \State $contestants$ $\gets$ randomly pick 2 chromosomes from population
+            \State winner $\gets$ best($contestants_1$, $contestantes_2$)
+            \State \Return winner
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    El mecanismo de selección generacional puede verse en el Pseudocódigo \ref{seleccion}.
+
+    \begin{algorithm}
+        \caption{Mecanismo de selección}\label{seleccion}
+        \begin{algorithmic}[1]
+            \Function{selection}{population}
+            \For{$i \in \{1,2,\dots,n\}$} \Comment{n = size of the population}
+                \State $s_i \gets$ binaryTournament(population)
+            \EndFor
+            \State selected $\gets$ $(s_1, s_2, \dots, s_{n})$
+            \State \Return selected
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsubsection*{Operador de cruce}
+
+    El operador de cruce clásico en dos puntos consiste en lo siguiente: dividir los dos padres en tres partes iguales para ambos individuos pero de tamaño aleatorio y asignar a cada hijo toma la parte central de un padre y las partes exteriores del otro. Podemos ver este operador en el Pseudocódigo \ref{opCruceClasico}.
+
+    \begin{algorithm}
+        \caption{Operador de cruce clásico}\label{opCruceClasico}
+        \begin{algorithmic}[1]
+            \Function{classicXOver}{f, m} \Comment{Father and mother}
+            \State $i, j \gets$ pick 2 random integers in $\{2,\dots,n-1\}$ \Comment{n = number of genes}
+            \State $c^1 \gets (f_1, f_2, \dots, f_i, m_{i+1}, m_{i+2}, \dots, m_j, f_{j+1}, f_{j+2}, \dots, f_n)$
+            \State $c^2 \gets (m_1, m_2, \dots, m_i, f_{i+1}, f_{i+2}, \dots, f_j, m_{j+1}, m_{j+2}, \dots, m_n)$
+            \State children $\gets$ [$c^1, c^2$]
+            \State \Return children
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsubsection*{Operador de mutación}
+
+    Por último, estudiemos el operador de mutación considerado, dependiente de un proceso también aleatorio. La idea inicial era la siguiente: para cada gen de cada cromosoma se genera un número aleatorio; si este es menor que una constante $\alpha$, se muta el gen; si no, se deja tal y como está.
+
+    Como la constante considerada es ínfima ---$\alpha = 0.001$---, el coste computacional de generar un número aleatorio para cada gen de cada individuo de la población es muy alto: generaremos demasiados valores aleatorios para las pocas mutaciones que vamos a realizar. Por tanto, se ha seguido un procedimiento basado en el número esperado de mutaciones; es decir: se calcula el número $M = \alpha n N$, donde $\alpha$ es la probabilidad de mutación, $n$ el número de genes en un cromosoma y $N$ el número de cromosomas en la población y se eligen $M$ genes de entre todos los cromosomas a los que se le aplica la mutación. El operador de mutación atómico ---esto es, el procedimiento que se le aplica a cada gen si se decide mutarlo--- es el operador \emph{flip}. En el Pseudocódigo \ref{opMutacion} se puede ver todo este proceso con más detalle, donde se indica que los números aleatorios generados en las $M$ iteraciones deben ser siempre distintos para no mutar un mismo cromosoma con un mismo gen dos veces.
+
+    \begin{algorithm}
+        \caption{Operador de mutación}\label{opMutacion}
+        \begin{algorithmic}[1]
+            \Function{mutate}{population}
+            \State $\alpha \gets 0.001$
+            \State $n \gets$ size of a chromosome
+            \State $N \gets$ number of chromosomes in population
+            \State $M \gets \ceil{\alpha n N}$
+            \For{$\_ \in \{1,2,\dots,M\}$} \Comment{Repeat it M times}
+                \State\Comment{Do not repeat the pair \{chromosome, gene\} between iterations}
+                \State chromosome $\gets random(\{1,\dots,N\})$
+                \State gene $\gets random(\{1,\dots,n\})$
+                \State flip(chrom, gene)
+            \EndFor
+            \State \Return population
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsubsection*{Esquema de evolución}
+
+    La idea de la evolución es la siguiente: para cada pareja de individuos seleccionados en $P_t$ se generará un número aleatorio; si este es menor que una constante $\alpha$ prefijada, a esta pareja se le aplicará el operador de cruce, guardando el resultado como parte de la población de descendientes; si el número aleatorio generado es mayor que $\alpha$, la pareja de individuos seleccionados pasará a formar parte de la población de descendientes sin más.
+
+    Veamos el procedimiento general en el Pseudocódigo \ref{recombination}
+
+    \begin{algorithm}
+        \caption{Esquema de evolución}\label{recombination}
+        \begin{algorithmic}[1]
+            \Function{recombination}{selected, $\alpha$} \Comment{Selected chromosomes in $P_t$}
+            \State $D \gets \o$ \Comment{Descendants of $P_t$}
+            \For{f,m $\in$ pairs(selected)} \Comment{Take a different pair in each iteration}
+                \State random $\gets$ random([0.0,1.0])
+                \State $D \gets D\; \cup$ \begin{cases}
+                    crossover(f,m) &\textrm{\textbf{if} } random < \alpha \\
+                    \{f,m\} &\textrm{\textbf{if} } random \geq \alpha
+                \end{cases}
+            \EndFor
+            \State \Return $D$
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsubsection*{Esquema de reemplazamiento generacional}
+    El algoritmo genético sigue un esquema generacional, así que la población $P_{t+1}$ está formada por todos los descendientes de $P_t$ ---esto es, el conjunto de individuos devuelto por el método \emph{recombination}---, asegurando el elitismo; es decir, que la mejor solución de $P_t$ esté en $P_{t+1}$. El procedimiento, que recibe como parámetros la población $P_t$ y los descendientes $D$ generados con el esquema de evolución recién descrito, puede verse en el Pseudocódigo \ref{replacementG}.
+
+    \begin{algorithm}
+        \caption{Reemplazamiento generacional}\label{replacementG}
+        \begin{algorithmic}[1]
+            \Function{genReplacement}{$P_t$, $D$} \Comment{Actual population and its descendants}
+            \State $M \gets$ best chromosome in $P_t$
+            \State $P_{t+1} \gets D$
+            \If{$M \notin P_{t+1}$}
+                \State $W \gets$ worst chromosome in $P_{t+1}$
+                \State $P_{t+1} \gets (P_{t+1} \setminus \{W\}) \cup \{M\}$
+            \EndIf
+            \State \Return $P_{t+1}$
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsection{Algoritmo memético con búsqueda local generalizada}
+
+    Con todos los procedimientos explicados, estamos ya en disposición de ver el comportamiento de los algoritmos meméticos.
+
+    El primero de ellos es el que hace una iteración de la búsqueda local primero el mejor sobre todos y cada uno de los cromosomas de la población cada diez generaciones. En el Pseudocódigo \ref{AM1010} se encuentra resumido el procedimiento, cuyo criterio de parada depende del número de llamadas a la función objetivo: cuando se alcancen 15000 ---contando aquí las llamadas hechas dentro de la búsqueda local--- se detendrá el proceso y se devolverá la mejor solución.
+
+    \begin{algorithm}
+        \caption{Algoritmo memético generalizado}\label{AM1010}
+        \begin{algorithmic}[1]
+            \Function{AGG}{}
+            \State $\alpha \gets 0.7$ \Comment{Crossover probability}
+            \State $N \gets 10$ \Comment{Size of the population}
+            \State $P_t \gets$ generate $N$ random chromosomes
+            \While{calls to the target function < 15000}
+                \State $S \gets$ selection($P_t$, $N$) \Comment{Selection of $N$ parents}
+                \State $D \gets$ recombination($S$, $\alpha$)
+                \State $D' \gets$ mutation($D$)
+                \State $P_{t+1} \gets$ genReplacement($P_t$, $D'$)
+                \If{generation \% 10 == 0}
+                    \For{$C \in P_{t+1}$}
+                    \State $C \gets$ bestFirst($C$)
+                    \EndFor
+                \EndIf
+                \State $P_t \gets P_{t+1}$
+            \EndWhile
+            \State bestSolution $\gets$ bestChromosome($P_t$)
+            \State bestScore $\gets$ $f$(bestSolution)
+            \State \Return bestChromosome, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsection{Algoritmo memético con búsqueda local aleatoria}
+    El segundo algoritmo considerado es el que hace una iteración de la búsqueda local primero el mejor sobre un 10\% aleatorio de los cromosomas de la población cada diez generaciones. En el Pseudocódigo \ref{AM1001} se encuentra resumido el procedimiento, cuyo criterio de parada depende del número de llamadas a la función objetivo: cuando se alcancen 15000 ---contando aquí las llamadas hechas dentro de la búsqueda local--- se detendrá el proceso y se devolverá la mejor solución.
+
+    \begin{algorithm}
+        \caption{Algoritmo memético aleatorio}\label{AM1001}
+        \begin{algorithmic}[1]
+            \Function{AGG}{}
+            \State $\alpha \gets 0.7$ \Comment{Crossover probability}
+            \State $N \gets 10$ \Comment{Size of the population}
+            \State $P_t \gets$ generate $N$ random chromosomes
+            \While{calls to the target function < 15000}
+                \State $S \gets$ selection($P_t$, $N$) \Comment{Selection of $N$ parents}
+                \State $D \gets$ recombination($S$, $\alpha$)
+                \State $D' \gets$ mutation($D$)
+                \State $P_{t+1} \gets$ genReplacement($P_t$, $D'$)
+                \If{generation \% 10 == 0}
+                    \State $P' \gets$ random 10\% sample of $P_{t+1}$
+                    \For{$C \in P'$}
+                    \State $C \gets$ bestFirst($C$)
+                    \EndFor
+                \EndIf
+                \State $P_t \gets P_{t+1}$
+            \EndWhile
+            \State bestSolution $\gets$ bestChromosome($P_t$)
+            \State bestScore $\gets$ $f$(bestSolution)
+            \State \Return bestChromosome, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    Es importante describir el porqué de la decisión de tomar directamente un 10\% de los cromosomas de la población: el algoritmo a desarrollar está descrito a través de una probabilidad ---$p_{LS} = 0.1$--- que determina para cada cromosoma de la población si este se debe mejorar con la búsqueda local o no. En vez de recorrer todos los cromosomas y generar un número aleatorio para cada uno de ellos, lo que se ha hecho es calcular el número esperado de cromosomas a mejorar localmente.
+
+    Así, basta tomar una muestra aleatoria de ese tamaño ---lo que llamamos $P'$ en el pseudocódigo--- y aplicar la mejora sólo a esos cromosomas.
+
+    \subsection{Algoritmo memético con búsqueda local elitista}
+    El último algoritmo considerado es el que hace una iteración de la búsqueda local primero el mejor sobre el mejor 10\% de los cromosomas de la población cada diez generaciones. En el Pseudocódigo \ref{AM1001M} se encuentra resumido el procedimiento, cuyo criterio de parada depende del número de llamadas a la función objetivo: cuando se alcancen 15000 ---contando aquí las llamadas hechas dentro de la búsqueda local--- se detendrá el proceso y se devolverá la mejor solución.
+
+    \begin{algorithm}
+        \caption{Algoritmo memético elitista}\label{AM1001M}
+        \begin{algorithmic}[1]
+            \Function{AGG}{}
+            \State $\alpha \gets 0.7$ \Comment{Crossover probability}
+            \State $N \gets 10$ \Comment{Size of the population}
+            \State $P_t \gets$ generate $N$ random chromosomes
+            \While{calls to the target function < 15000}
+                \State $S \gets$ selection($P_t$, $N$) \Comment{Selection of $N$ parents}
+                \State $D \gets$ recombination($S$, $\alpha$)
+                \State $D' \gets$ mutation($D$)
+                \State $P_{t+1} \gets$ genReplacement($P_t$, $D'$)
+                \If{generation \% 10 == 0}
+                    \State $P' \gets$ best 10\% sample of $P_{t+1}$
+                    \For{$C \in P'$}
+                    \State $C \gets$ bestFirst($C$)
+                    \EndFor
+                \EndIf
+                \State $P_t \gets P_{t+1}$
+            \EndWhile
+            \State bestSolution $\gets$ bestChromosome($P_t$)
+            \State bestScore $\gets$ $f$(bestSolution)
+            \State \Return bestChromosome, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    \subsection{Algoritmo de comparación}
+
+    Para la comparación de los algoritmos implementados consideraremos el algoritmo voraz \emph{Sequential forward selection}, que se puede ver en el Pseudocódigo \ref{algSFS}.
+
+    \begin{algorithm}
+        \caption{Algoritmo de comparación}\label{algSFS}
+        \begin{algorithmic}[1]
+            \Function{sequentialForwardSelection}{train, target}
+            \State s $\gets$ genZeroSolution()
+            \State bestScore $\gets$ 0
+            \While{there was improvement with some feature}
+                \For{every feature f in not selected features}
+                    \State s $\gets$ addFeature(s,f)
+                    \State currentScore $\gets$ score(s, train, target)
+                    \If{currentScore $>$ bestScore}
+                    \State bestScore $\gets$ currentScore
+                    \State bestFeature $\gets$ f
+                    \EndIf
+                    \State s $\gets$ removeFeature(s,f)
+                \EndFor
+            \If{there was a best feature f}
+            \State s $\gets$ addFeature(s,f)
+            \EndIf
+            \EndWhile
+            \State \Return s, bestScore
+            \EndFunction
+        \end{algorithmic}
+    \end{algorithm}
+
+    La idea es la siguiente: en cada iteración escogemos la característica, de entre las aún no seleccionadas, que mejor valor de la función objetivo produce, si y sólo si este valor es mejor que el actual.
+
+    \section{Desarrollo de la práctica}
+
+    La práctica se ha desarrollado por completo en Python, definiendo cada algoritmo en una función diferente con cabeceras iguales ---mismo número y tipo de parámetros--- para poder automatizar el proceso de recogida de datos.
+
+    \subsection{\emph{Framework} de aprendizaje automático}
+    Se ha usado, además, el módulo \emph{Scikit-learn}, del que se ha usado la siguiente funcionalidad:
+    \begin{itemize}
+        \item Particionamiento de los datos. \emph{Scikit-learn} aporta una función para hacer un particionado aleatorio de los datos en una parte de aprendizaje y otra de test. Esto se ha usado para implementar la técnica $5\times2$ \emph{cross-validation}.
+    \end{itemize}
+
+    \subsection{Paralelización en GPU de la función objetivo}
+
+    Aunque en las dos primeras prácticas se usó también \emph{Scikit-learn} para medir la función objetivo, la lentitud de este proceso me llevó a buscar otras alternativas: después de intentar usar el mismo módulo con la opción de paralelización CPU y conseguir prácticamente los mismos resultados ---para notar mejoría, dicen los desarrolladores, haría falta trabajar con bases de datos con varios miles de muestras---, decidí buscar una solución propia.
+
+    Como gracias a mi Trabajo fin de grado he aprendido a hacer computación general paralelizada en GPU, decidí usar la librería CUDA ---y en concreto su interfaz para Python, PyCUDA--- para implementar la función objetivo de una forma eficiente. La mejoría en tiempo conseguida es muy notable ---es del orden de 20 a 100 veces más rápido\footnote{Los tiempos son muy dependientes del número de muestras de la base de datos y del número de características. Para tener una idea de la mejora, se pueden comparar los tiempos de las tablas 3-NN y SFS de esta y la anterior práctica.}--- y, tras muchas pruebas para comprobar que el cálculo de la función era correcto, sustituí el $k$-NN de \emph{Scikit-learn} con el implementado en CUDA.
+
+    Todo este trabajo, necesario para el correcto funcionamiento de la práctica, se encuentra en los ficheros bajo el directorio \emph{src/knnGPU}, que contienen la implementación en C del $k$-NN y la interfaz para poder usar el código desde Python.
+
+    Además, como vi que este código podía beneficiar a mis compañeros, decidí publicarlo de forma abierta en un \fnurl{repositorio de Github}{https://github.com/agarciamontoro/metaheuristics}, bien documentado y con una guía de uso.
+
+    Gracias a esto, algunos amigos me ayudaron a mejorar el código: yo había implementado sólo la función objetivo sobre los datos de training, y Jacinto Carrasco Castillo la modificó para poder hacer la medición también con los datos de test. Además, Luís Suárez Lloréns me ayudó a probar cambios que creíamos que iban a  mejorar aún más la eficiencia ---aunque tras mucho trabajo vimos que la implementación inicial era la más rápida---. Por último, Antonio Álvarez Caballero, Anabel Gómez Ríos y Gustavo Rivas Gervilla me ayudaron a testear el código, probándolo con sus algoritmos y los datos que tenían de anteriores prácticas.
+
+    \subsection{Manual de usuario}
+    Para la ejecución de la práctica es necesario tener instalado Python 3, el módulo \emph{Scikit-learn}, \emph{PyCUDA} y \emph{jinja2} ---estos dos últimos módulos son necesarios para la implementación del código paralelizado---, así como disponer de una tarjeta gráfica compatible con CUDA.
+
+    Todo se encuentra automatizado en el fichero \texttt{src/05\_memetic.py}, así que sólo es necesario ejecutar la siguiente orden desde el directorio raíz de la práctica: \texttt{python src/05\_memetic.py}
+
+    Así se ejecutarán todos los algoritmos con todas las bases de datos usando la ténica del  $5\times2$ \emph{cross-validation}. Las tablas generadas se guardarán en el directorio \texttt{results/05}.
+
+    La semilla utilizada se inicializa al principio de la ejecución del programa con las líneas \texttt{np.random.seed(19921201)} y \texttt{random.seed(19921201)}.
+
+
+    \section{Análisis de resultados}
+
+    En esta sección vamos a presentar los datos recogidos de la ejecución de todos los algoritmos con las tres bases de datos consideradas: \emph{WDBC}, \emph{Movement Libras} y \emph{Arrhytmia}. Las bases de datos se han considerado completas en todos los casos, tal y como se nos entregaron ---arreglando alguna columna defectuosa y homogeneizando el nombre de la columna de clasificación para poder automatizar el proceso---.
+
+    Para el análisis de cada algoritmo con cada base de datos se han generado cinco particiones aleatorias de los datos y se ha ejecutado el algoritmo considerando cada partición como datos de entrenamiento y test, con la técnica \emph{$5\times2$ cross-validation}.
+
+    En cada una de estas ejecuciones se han medido los siguientes datos:
+    \begin{itemize}
+        \item Tasa de clasificación en la partición de entrenamiento ---en \%---.
+        \item Tasa de clasificación en la partición de test ---en \%---.
+        \item Tasa de reducción de las características ---en \%---.
+        \item Tiempo de ejecución ---en segundos---.
+    \end{itemize}
+
+    Veamos ya los datos y analicemos los resultados obtenidos:
+
+    \subsection{Clasificador $k$-NN}
+    \begin{table}[!htb]
+        \maketable{\dataKNN}
+        \caption{Datos del clasificador $k$-NN}
+        \label{knn}
+    \end{table}
+
+    En la tabla \ref{knn} se pueden ver los datos obtenidos del clasificador $k$-NN. La selección de características en este algoritmo es nula, ya que es la propia función objetivo considerando la totalidad de las características. Aún así, se ha añadido aquí para conocer la tasa de clasificación en los conjuntos de entrenamiento y de test considerando como solución la trivial: esto es, todas las características.
+
+    Como vemos, aunque en la primera base de datos las tasas de clasificación son buenas, en las otras dos son muy mejorables, lo que nos da una idea de la necesidad de la reducción de características.
+
+    \subsection{Algoritmo de comparación}
+    \begin{table}[!htb]
+        \maketable{\dataSFS}
+        \caption{Datos del algoritmo \emph{Sequential forward selection}}
+        \label{sfs}
+    \end{table}
+
+    En la tabla \ref{sfs} vemos los resultados del algoritmo de comparación, el \emph{Sequential forward selection}. Este algoritmo voraz tiene una alta tasa de reducción de características, pero la tasa de clasificación no mejora la del clasificador con la solución trivial, excepto en la última base de datos.
+
+    Esto se debe a que consideramos cada característica de una forma secuencial, y una vez seleccionamos una, es imposible descartarla. Aún así, este algoritmo podría ser interesante si lo que buscamos es una reducción drástica del número de características ---como vemos, sobre el 80\%--- sin perder mucha información ---las tasas de clasificación son más o menos iguales a las del clasificador con la solución trivial---.
+
+    \subsection{Algoritmo memético con búsqueda local generalizada}
+    \begin{table}[!htb]
+        \maketable{\dataAMTT}
+        \caption{Datos del algoritmo memético con búsqueda local generalizada.}
+        \label{tablaAMTT}
+    \end{table}
+
+    Veamos ya el primero de los tres algoritmos meméticos estudiados.
+
+    En general, el algoritmo memético generalizado consige unas tasas de clasificación algo mejores que el SFS ---excepto en la última base de datos---, pero no demasiado; quizás la gran intensificación de la búsqueda local sobre todos los cromosomas reduce al mismo tiempo la diversidad de la población, lo que provoca que los resultados no sean mucho mejores.
+
+    Habría que estudiar qué problema tiene el algoritmo, analizando la diversidad de la población y probando alternativas, pero tal y como está ahora mismo, los resultados no son muy aceptables.
+
+    \subsection{Algoritmo memético con búsqueda local aleatoria}
+    \begin{table}[!htb]
+        \maketable{\dataAMTZ}
+        \caption{Datos del algoritmo memético con búsqueda local aleatoria.}
+        \label{tablaAMTZ}
+    \end{table}
+
+    En este caso se reduce la intensificación a una parte mucho más pequeña de la población: sólo se ejecuta la búsqueda local sobre un 10\% de los cromosomas.
+
+    En principio, esta es una buena idea para intentar mantener la diversidad del algoritmo genético mientras que añadimos algo de intensificación.
+
+    Sin embargo, los resultados son incluso peores que con el anterior algoritmo. Excepto en la última base de datos, en la que la mejora es ínfima y poco significativa, este algoritmo se comporta peor que el generalizado.
+
+    Vemos así que, aunque la idea de aumentar la diversidad del anterior reduciendo la intensificación podía parecer positiva, en la práctica no ha dado los resultados esperados.
+
+    \subsection{Algoritmo memético con búsqueda local elitista}
+    \begin{table}[!htb]
+        \maketable{\dataAMTZM}
+        \caption{Datos del algoritmo memético con búsqueda local elistista.}
+        \label{tablaAMTZM}
+    \end{table}
+
+    Por último, veamos el algoritmo memético elitista, análogo al anterior pero eliminando la aleatoriedad del proceso al ejecutar la búsqueda local sobre el 10\% mejor de la población.
+
+    Este algoritmo sigue por tanto la misma idea que el último que hemos visto, pero intenta refinarla dejando que la búsqueda local actúe sólo sobre los mejores. Esto parece que da mejores resultados, quizás porque se dirige la intensificación a zonas del espacio de búsqueda más prometedoras, y no se desaprovecha esta potencia aleatorizando las zonas que mejorar.
+
+    Los resultados apoyan esta idea: este es el mejor de los tres algoritmos meméticos, excepto en la última base de datos. La mejora de la clasificación es sutil pero consistente en las dos primeras bases de datos.
+
+    \subsection{Datos generales}
+    \begin{table}[!htb]
+        \maketablemean{\dataMedias}
+        \caption{Datos generales.}
+        \label{medias}
+    \end{table}
+
+    En esta tabla se comprueba de forma más clara cómo actúan los algoritmos meméticos con respecto al algoritmo de comparación. Estudiemos cada base de datos por separado.
+
+    En la primera base de datos vemos que los tres algoritmos superan al de comparación, ganando entre ellos tres el elitista. Esto se debe principalmente a lo explicado en la última sección: el último algoritmo es el que más equilibrio presenta entre la diversificación y la intensificación.
+
+    En la segunda base de datos el comportamiento es similar: aunque en la tasa de clasificación en la partición de entrenamiento el algoritmo de comparación es el mejor, en la tasa de clasificación en la partición de test, que es la realmente importante, los tres algoritmos meméticos superan a SFS. De nuevo, aquí gana el memético elitista, ya que el tamaño de esta base de datos es parecida a la anterior y el equilibrio diversificación/intensificación da los mismos beneficios.
+
+    La tercera base de datos, como en todas las prácticas anteriores, presenta unos comportamientos diferentes a las dos previas. El tamaño de esta base es mucho mayor y sus datos están mucho más dispersos, como se puede comprobar comparando la tasa de clasificación del $k$-NN en esta y el resto de bases de datos, siendo aquí muchísimo menor. Estas características hacen que el SFS mejore a todos los algoritmos meméticos presentados. El equilibrio diversificación/intensificación del algoritmo memético elitista tiene aquí mucho menos poder, y de hecho es el perdedor entre los tres: esta base de datos necesita más diversificación para llegar a todas las zonas del espacio de búsqueda y, por tanto, es el memético aleatorio ---que aun añadiendo intensificación no pierde diversidad como el generalizado--- el ganador.
+
+    Con respecto a las tasas de reducción, los comportamientos de los tres algoritmos son muy parecidos en las tres bases de datos, consiguiendo tasas mucho menores que el SFS y todas sobre el 50\%. En este aspecto no hay gran diferencia entre los algoritmos, así que no podemos sacar conclusiones sobre su idoneidad basándonos en esta caractesística.
+
+    Como resumen a todo el análisis, podríamos decir que el mejor de los tres algoritmos meméticos es el elitista, aunque antes de tomar una decisión hay que estudiar los datos que tenemos que procesar: si el espacio de búsqueda es potencialmente amplio, como en la última base de datos, entonces será más sensato usar el algoritmo aleatorio; si no, el elitista parece el más adecuado. En cualquier caso, y en base únicamente al estudio hecho aquí, que no es completo ni lo pretende, podríamos descartar el primero de los algoritmos si tenemos el tercero disponible, por añadir demasiada intensificación y no cuidar el mantener la diversidad, equilibrio que intentan conseguir todos los algoritmos meméticos.
+
+    Es importante destacar por último que cualquier conslusión extraída de este estudio debería ser analizada de nuevo con más casos de prueba y usando distintas componentes para los algoritmos, ya que es un análisis reducido que pretende únicamente dar una primera idea sobre la idoneidad de cada algoritmo para cada problema.
+
+\end{document}
