@@ -1,5 +1,6 @@
 from algorithms.utils import genInitSolution, flip, randomly
 
+
 def bestFirst(train, target, scorer, initSol=None):
     # Number of features in training data
     size = train.shape[1]

@@ -1,9 +1,10 @@
-from algorithms.utils import flip, genInitSolution, pairwise
+from algorithms.utils import flip, genInitSolution, pairwise, randomly
 
 from operator import attrgetter
 import numpy as np
 from copy import deepcopy
 from itertools import chain
+
 
 class Chromosome:
     def __init__(self, chromosomSize, scorer, HUX=False):
@@ -64,12 +65,33 @@ class Chromosome:
 
         return [child1, child2]
 
+    def localImprovement(self):
+        # Initial score
+        bestScore = self.score
+
+        for gene in randomly(range(self.size)):
+            flip(self.genes, gene)
+
+            # Get the current score from the K-NN classifier
+            currentScore = self.scorer(self.genes)
+
+            # If the current solution is better, update the bestScore,
+            # keep the changes and finish. If it is not, undo the gene flip
+            # and continue.
+            if currentScore > bestScore:
+                bestScore = currentScore
+                break
+            else:
+                flip(self.genes, gene)
+
+        self.score = bestScore
+
 
 # General
 class Population:
     def __init__(self, populationSize, chromosomeSize, scorer,
                  crossoverProb=1, mutationProb=0.001, numSelected=2,
-                 HUX=False):
+                 HUX=False, hybridModel="1010", hybridConstant=0.1):
         self.population = [Chromosome(chromosomeSize, scorer, HUX)
                            for _ in range(populationSize)]
 
@@ -79,6 +101,17 @@ class Population:
         self.crossoverProb = crossoverProb
         self.numSelected = numSelected
         self.HUX = HUX
+
+        if hybridModel == "1010":
+            self.localImprovement = self.globalLocalImprovement
+        elif hybridModel == "1001":
+            self.localImprovement = self.randomLocalImprovement
+        elif hybridModel == "1001M":
+            self.localImprovement = self.elitistLocalImprovement
+        else:
+            raise ValueError('The hybrid model is unknown.'
+                             'At the moment we only support "1010", "1001" and'
+                             '"1001M".')
 
         self.generation = 1
 
@@ -120,6 +153,28 @@ class Population:
         self.population.sort(key=attrgetter('score'))
 
         return self.population[-1]
+
+    def globalLocalImprovement(self):
+        if self.generation % 10 == 0:
+            for chromosome in self.population:
+                chromosome.localImprovement()
+
+    def randomLocalImprovement(self):
+        numChanges = int(self.hybridConstant * self.size)
+        chromosomesToChange = np.random.randint(0, self.size, numChanges)
+
+        for chromosomeIdx in chromosomesToChange:
+            self.population[chromosomeIdx].localImprovement()
+        pass
+
+    def elitistLocalImprovement(self):
+        numChanges = int(self.hybridConstant * self.size)
+
+        # Sort in descending order: first chromosome is the best one
+        self.population.sort(key=attrgetter('score'), reverse=True)
+
+        for chromosomeIdx in range(numChanges):
+            self.population[chromosomeIdx].localImprovement()
 
 
 class stationaryPopulation(Population):
@@ -163,6 +218,8 @@ class generationalPopulation(Population):
             self.population.sort(key=attrgetter('score'))
 
             self.population[0] = bestChromosome
+
+        self.generation += 1
 
 
 def GA(train, target, scorer, stationary=True, HUX=False):
